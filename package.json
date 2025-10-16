@@ -11,6 +11,15 @@
     "./app.plugin.js": "./app.plugin.js"
   },
   "types": "build/index.d.ts",
+  "files": [
+    "build",
+    "android",
+    "ios",
+    "src",
+    "app.plugin.js",
+    "app.plugin.dev.js",
+    "expo-module.config.json"
+  ],
   "scripts": {
     "build": "tsc",
     "prepare": "tsc",
