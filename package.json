@@ -12,11 +12,11 @@
   },
   "types": "build/index.d.ts",
   "scripts": {
-    "build": "expo-module build",
-    "clean": "expo-module clean",
+    "build": "tsc",
+    "prepare": "tsc",
+    "clean": "rm -rf build",
     "lint": "expo-module lint",
     "test": "expo-module test",
-    "prepare": "expo-module build",
     "prepublishOnly": "expo-module prepublishOnly",
     "expo-module": "expo-module",
     "open:ios": "xed example/ios",
@@ -40,7 +40,8 @@
     "@types/react": "~19.0.0",
     "expo-module-scripts": "^4.1.9",
     "expo": "~53.0.0",
-    "react-native": "0.79.1"
+    "react-native": "0.79.1",
+    "typescript": "^5.8.0"
   },
   "peerDependencies": {
     "expo": "*",
