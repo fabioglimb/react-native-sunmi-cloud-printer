@@ -23,6 +23,9 @@ import expo.modules.kotlin.exception.CodedException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 enum class SunmiPrinterError(val error: String, val reason: String) {
     PRINTER_NOT_CONNECTED("ERROR_PRINTER_NOT_CONNECTED", "Printer not connected"),
@@ -316,6 +319,22 @@ class SunmiManager {
     // WiFi Configuration APIs
     // -----------------------
 
+    // Helper function to fetch serial number synchronously
+    private suspend fun fetchSerialNumberSync(printer: CloudPrinter): String? = suspendCancellableCoroutine { continuation ->
+        try {
+            printDebugLog("🔵 Fetching serial number synchronously...")
+            printer.getDeviceSN { serialNumber ->
+                printDebugLog("🟢 Received serial number: ${if (serialNumber?.isEmpty() != false) "<empty>" else serialNumber}")
+                // Cache it
+                cachedSerialNumber = serialNumber
+                continuation.resume(serialNumber)
+            }
+        } catch (e: Exception) {
+            printDebugLog("🔴 ERROR fetching SN: ${e.message}")
+            continuation.resumeWithException(e)
+        }
+    }
+
     fun getPrinterSerialNumber(promise: Promise) {
         val printer = cloudPrinter
         if (printer != null) {
@@ -371,8 +390,8 @@ class SunmiManager {
                 return
             }
             
-            // Use provided serial number, or cached one
-            val snToUse = when {
+            // Use provided serial number, or cached one, or fetch it now
+            val snToUse: String = when {
                 serialNumber.isNotEmpty() -> {
                     printDebugLog("🔵 Using provided serial number: $serialNumber")
                     serialNumber
@@ -382,14 +401,35 @@ class SunmiManager {
                     cachedSerialNumber!!
                 }
                 else -> {
-                    printDebugLog("🔴 ERROR: No serial number available")
-                    WiFiConfigStatusNotifier.onStatusUpdate("error_no_serial_number")
-                    promise.reject(
-                        "ERROR_NO_SERIAL_NUMBER",
-                        "Serial number is required. Call getPrinterSerialNumber() first, wait for onPrinterSerialNumber event, then call enterNetworkMode() with the received SN or empty string to use cached SN.",
-                        null
-                    )
-                    return
+                    printDebugLog("🟡 No serial number available, fetching now...")
+                    WiFiConfigStatusNotifier.onStatusUpdate("fetching_serial_number")
+                    try {
+                        // Fetch serial number synchronously using runBlocking
+                        val fetchedSn = runBlocking {
+                            fetchSerialNumberSync(printer)
+                        }
+                        if (fetchedSn.isNullOrEmpty()) {
+                            printDebugLog("🔴 ERROR: Fetched serial number is empty")
+                            WiFiConfigStatusNotifier.onStatusUpdate("error_empty_serial_number")
+                            promise.reject(
+                                "ERROR_EMPTY_SERIAL_NUMBER",
+                                "Printer returned empty serial number. Cannot proceed with WiFi configuration.",
+                                null
+                            )
+                            return
+                        }
+                        printDebugLog("🟢 Successfully fetched serial number: $fetchedSn")
+                        fetchedSn
+                    } catch (e: Exception) {
+                        printDebugLog("🔴 ERROR fetching serial number: ${e.message}")
+                        WiFiConfigStatusNotifier.onStatusUpdate("error_fetching_serial_number")
+                        promise.reject(
+                            "ERROR_FETCH_SERIAL_NUMBER",
+                            "Failed to fetch printer serial number: ${e.message}",
+                            e
+                        )
+                        return
+                    }
                 }
             }
             
