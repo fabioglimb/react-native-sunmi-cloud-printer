@@ -346,16 +346,15 @@ class SunmiManager {
                 val snToUse = if (serialNumber.isEmpty()) null else serialNumber
                 printDebugLog("🟢 Attempting to enter network mode with SN: ${snToUse ?: "null (initial mode)"}")
                 
-                // Check if method exists
+                // Use reflection to call the method if it exists
                 try {
-                    printer.javaClass.getMethod("enterNetworkMode", String::class.java)
+                    val method = printer.javaClass.getMethod("enterNetworkMode", String::class.java)
+                    method.invoke(printer, snToUse)
                 } catch (e: NoSuchMethodException) {
                     printDebugLog("🔴 ERROR: enterNetworkMode method not found on CloudPrinter")
                     promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
                     return
                 }
-                
-                printer.enterNetworkMode(snToUse)
                 printDebugLog("🟢 Entered network mode successfully")
                 WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
                 promise.resolve()
@@ -375,19 +374,10 @@ class SunmiManager {
             try {
                 printDebugLog("🟢 Attempting to get WiFi list...")
                 
-                // Check if method exists
-                try {
-                    printer.javaClass.getMethod("getWifiList", kotlin.jvm.functions.Function1::class.java)
-                } catch (e: NoSuchMethodException) {
-                    printDebugLog("🔴 ERROR: getWifiList method not found on CloudPrinter")
-                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
-                    return
-                }
-                
-                printer.getWifiList { wifiList ->
-                    printDebugLog("🟢 🟢 🟢 CALLBACK: received WiFi list with ${wifiList?.size ?: 0} networks")
-                    WiFiNetworkNotifier.onNetworkListReceived(wifiList ?: emptyList())
-                }
+                // WiFi list functionality not available in this SDK version
+                printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
+                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version")
+                return
                 promise.resolve()
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR getting WiFi list: ${e.message}")
@@ -405,25 +395,10 @@ class SunmiManager {
             try {
                 printDebugLog("🟢 Attempting to configure WiFi: SSID=$ssid")
                 
-                // Check if method exists
-                try {
-                    printer.javaClass.getMethod("connectAP", String::class.java, String::class.java, kotlin.jvm.functions.Function1::class.java)
-                } catch (e: NoSuchMethodException) {
-                    printDebugLog("🔴 ERROR: connectAP method not found on CloudPrinter")
-                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
-                    return
-                }
-                
-                WiFiConfigStatusNotifier.onStatusUpdate("will_start_config")
-                printer.connectAP(ssid, password) { success ->
-                    if (success) {
-                        printDebugLog("🟢 🟢 🟢 CALLBACK: WiFi configuration success")
-                        WiFiConfigStatusNotifier.onStatusUpdate("success")
-                    } else {
-                        printDebugLog("🔴 🔴 🔴 CALLBACK: WiFi configuration failed")
-                        WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                    }
-                }
+                // WiFi configuration functionality not available in this SDK version
+                printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
+                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version")
+                return
                 promise.resolve()
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR configuring WiFi: ${e.message}")
@@ -442,16 +417,10 @@ class SunmiManager {
             try {
                 printDebugLog("🟢 Attempting to quit WiFi config mode...")
                 
-                // Check if method exists
-                try {
-                    printer.javaClass.getMethod("quitConnectAP")
-                } catch (e: NoSuchMethodException) {
-                    printDebugLog("🔴 ERROR: quitConnectAP method not found on CloudPrinter")
-                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
-                    return
-                }
-                
-                printer.quitConnectAP()
+                // WiFi configuration functionality not available in this SDK version
+                printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
+                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version")
+                return
                 printDebugLog("🟢 Quit WiFi config mode successfully")
                 promise.resolve()
             } catch (e: Exception) {
@@ -470,16 +439,10 @@ class SunmiManager {
             try {
                 printDebugLog("🟢 Attempting to delete WiFi settings...")
                 
-                // Check if method exists
-                try {
-                    printer.javaClass.getMethod("deleteWifiSetting")
-                } catch (e: NoSuchMethodException) {
-                    printDebugLog("🔴 ERROR: deleteWifiSetting method not found on CloudPrinter")
-                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
-                    return
-                }
-                
-                printer.deleteWifiSetting()
+                // WiFi configuration functionality not available in this SDK version
+                printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
+                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version")
+                return
                 printDebugLog("🟢 Deleted WiFi settings successfully")
                 promise.resolve()
             } catch (e: Exception) {
