@@ -44,5 +44,6 @@ android {
 
 dependencies {
   implementation 'androidx.activity:activity-ktx:1.9.1'
-  implementation(name: 'externalprinterlibrary2-1.0.13-release', ext: 'aar')
+  // Note: The AAR dependency is added by the app's build.gradle, not here
+  // This is required for Gradle 8.13+ compatibility with dependencyResolutionManagement
 }
