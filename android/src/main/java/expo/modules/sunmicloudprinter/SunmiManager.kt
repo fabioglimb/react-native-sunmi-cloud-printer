@@ -342,7 +342,9 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                printDebugLog("🟢 Attempting to enter network mode with SN: $serialNumber")
+                // If serial number is empty, use null for initial network mode entry
+                val snToUse = if (serialNumber.isEmpty()) null else serialNumber
+                printDebugLog("🟢 Attempting to enter network mode with SN: ${snToUse ?: "null (initial mode)"}")
                 
                 // Check if method exists
                 try {
@@ -353,7 +355,7 @@ class SunmiManager {
                     return
                 }
                 
-                printer.enterNetworkMode(serialNumber)
+                printer.enterNetworkMode(snToUse)
                 printDebugLog("🟢 Entered network mode successfully")
                 WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
                 promise.resolve()

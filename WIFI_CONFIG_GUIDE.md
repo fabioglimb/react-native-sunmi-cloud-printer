@@ -17,12 +17,14 @@ The typical WiFi configuration flow:
 
 ```
 1. Connect to printer via Bluetooth (connectBluetoothPrinter)
-2. Get printer serial number (getPrinterSerialNumber) 
-3. Enter network mode (enterNetworkMode)
+2. Enter network mode WITHOUT serial number (enterNetworkMode(''))  ⚠️ IMPORTANT!
+3. Get printer serial number (getPrinterSerialNumber)
 4. [Optional] Get WiFi list (getWiFiList)
 5. Configure WiFi (configureWiFi)
 6. Exit config mode (quitWiFiConfig)
 ```
+
+**⚠️ CRITICAL**: You MUST call `enterNetworkMode('')` with an empty string BEFORE calling `getPrinterSerialNumber()`. The printer needs to be in network mode to return its serial number.
 
 ## API Reference
 
@@ -43,8 +45,10 @@ const subscription = printerSerialNumberListener((event) => {
 await getPrinterSerialNumber();
 ```
 
-#### `enterNetworkMode(serialNumber: string): Promise<void>`
+#### `enterNetworkMode(serialNumber?: string): Promise<void>`
 Enter network configuration mode on the printer. The printer must be connected via Bluetooth.
+
+**IMPORTANT**: Call with empty string `''` or no parameter FIRST to enter initial network mode, then you can get the serial number.
 
 ```typescript
 import { enterNetworkMode, wifiConfigStatusListener } from 'react-native-sunmi-cloud-printer';
@@ -56,7 +60,10 @@ const statusSubscription = wifiConfigStatusListener((event) => {
   }
 });
 
-// Enter network mode
+// Enter network mode WITHOUT serial number (first time)
+await enterNetworkMode('');  // or await enterNetworkMode();
+
+// OR if you already have the SN, you can pass it
 await enterNetworkMode(serialNumber);
 ```
 
@@ -196,18 +203,18 @@ async function configurePrinterWiFi(printerUUID: string, targetSSID: string, pas
     // Wait for connection
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Step 2: Get printer serial number
+    // Step 2: Enter network mode (WITHOUT serial number!)
+    console.log('Entering network mode...');
+    await enterNetworkMode('');  // ⚠️ Pass empty string to enter initial mode
+    
+    // Wait for network mode
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Step 3: Get printer serial number (now that we're in network mode)
     console.log('Getting printer serial number...');
     await getPrinterSerialNumber();
     
     // Wait for SN
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Step 3: Enter network mode
-    console.log('Entering network mode...');
-    await enterNetworkMode(serialNumber);
-    
-    // Wait for network mode
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Step 4: Get WiFi list (optional)

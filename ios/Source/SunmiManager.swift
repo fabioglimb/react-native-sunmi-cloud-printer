@@ -423,8 +423,10 @@ class SunmiManager: NSObject {
       return
     }
     
-    printDebugLog("🟢 Entering network mode with SN: \(serialNumber)")
-    manager.enterNetworkMode(serialNumber)
+    // If serial number is empty, pass nil to enter initial network mode
+    let snToUse = serialNumber.isEmpty ? nil : serialNumber
+    printDebugLog("🟢 Entering network mode with SN: \(snToUse ?? "nil (initial mode)")")
+    manager.enterNetworkMode(snToUse)
     promise.resolve()
   }
   

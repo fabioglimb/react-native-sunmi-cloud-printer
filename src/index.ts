@@ -234,20 +234,22 @@ export function printerConnectionListener(listener: (event: PrinterConnectionPay
 // ---------------
 
 /**
- * Get the printer's serial number. Required before entering network mode.
+ * Enter network configuration mode on the printer.
+ * The printer must be connected via Bluetooth before calling this method.
+ * Call this FIRST with empty string or the device SN to enter network mode.
+ * @param serialNumber - Optional: The printer's serial number. Pass empty string "" to enter network mode.
+ */
+export async function enterNetworkMode(serialNumber?: string): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.enterNetworkMode(serialNumber || '');
+}
+
+/**
+ * Get the printer's serial number.
+ * IMPORTANT: You must call enterNetworkMode('') FIRST before calling this method.
  * Listen to the `printerSerialNumberListener` for the result.
  */
 export async function getPrinterSerialNumber(): Promise<void> {
   return ReactNativeSunmiCloudPrinterModule.getPrinterSerialNumber();
-}
-
-/**
- * Enter network configuration mode on the printer.
- * The printer must be connected via Bluetooth before calling this method.
- * @param serialNumber - The printer's serial number obtained from getPrinterSerialNumber
- */
-export async function enterNetworkMode(serialNumber: string): Promise<void> {
-  return ReactNativeSunmiCloudPrinterModule.enterNetworkMode(serialNumber);
 }
 
 /**
