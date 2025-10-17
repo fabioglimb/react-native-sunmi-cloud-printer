@@ -24,6 +24,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -319,19 +321,29 @@ class SunmiManager {
     // WiFi Configuration APIs
     // -----------------------
 
-    // Helper function to fetch serial number synchronously
-    private suspend fun fetchSerialNumberSync(printer: CloudPrinter): String? = suspendCancellableCoroutine { continuation ->
-        try {
-            printDebugLog("🔵 Fetching serial number synchronously...")
-            printer.getDeviceSN { serialNumber ->
-                printDebugLog("🟢 Received serial number: ${if (serialNumber?.isEmpty() != false) "<empty>" else serialNumber}")
-                // Cache it
-                cachedSerialNumber = serialNumber
-                continuation.resume(serialNumber)
+    // Helper function to fetch serial number synchronously with timeout
+    private suspend fun fetchSerialNumberSync(printer: CloudPrinter): String? {
+        return withTimeout(5000L) { // 5 second timeout
+            suspendCancellableCoroutine { continuation ->
+                try {
+                    printDebugLog("🔵 Fetching serial number synchronously...")
+                    printer.getDeviceSN { serialNumber ->
+                        printDebugLog("🟢 Received serial number: ${if (serialNumber?.isEmpty() != false) "<empty>" else serialNumber}")
+                        // Cache it
+                        cachedSerialNumber = serialNumber
+                        
+                        // Resume the coroutine only if not already resumed
+                        if (continuation.isActive) {
+                            continuation.resume(serialNumber)
+                        }
+                    }
+                } catch (e: Exception) {
+                    printDebugLog("🔴 ERROR fetching SN: ${e.message}")
+                    if (continuation.isActive) {
+                        continuation.resumeWithException(e)
+                    }
+                }
             }
-        } catch (e: Exception) {
-            printDebugLog("🔴 ERROR fetching SN: ${e.message}")
-            continuation.resumeWithException(e)
         }
     }
 
@@ -404,10 +416,23 @@ class SunmiManager {
                     printDebugLog("🟡 No serial number available, fetching now...")
                     WiFiConfigStatusNotifier.onStatusUpdate("fetching_serial_number")
                     try {
-                        // Fetch serial number synchronously using runBlocking
+                        // Fetch serial number synchronously using runBlocking with timeout handling
                         val fetchedSn = runBlocking {
-                            fetchSerialNumberSync(printer)
+                            try {
+                                val sn = fetchSerialNumberSync(printer)
+                                printDebugLog("🟢 Successfully fetched serial number")
+                                
+                                // Give the printer some time to stabilize after fetching SN
+                                printDebugLog("🔵 Waiting 500ms for printer to stabilize...")
+                                delay(500L)
+                                
+                                sn
+                            } catch (e: TimeoutCancellationException) {
+                                printDebugLog("🔴 TIMEOUT: Serial number fetch took too long (5s)")
+                                throw Exception("Serial number fetch timeout after 5 seconds")
+                            }
                         }
+                        
                         if (fetchedSn.isNullOrEmpty()) {
                             printDebugLog("🔴 ERROR: Fetched serial number is empty")
                             WiFiConfigStatusNotifier.onStatusUpdate("error_empty_serial_number")
@@ -418,10 +443,11 @@ class SunmiManager {
                             )
                             return
                         }
-                        printDebugLog("🟢 Successfully fetched serial number: $fetchedSn")
+                        printDebugLog("🟢 Serial number ready: $fetchedSn")
                         fetchedSn
                     } catch (e: Exception) {
                         printDebugLog("🔴 ERROR fetching serial number: ${e.message}")
+                        printDebugLog("🔴 Exception type: ${e.javaClass.name}")
                         WiFiConfigStatusNotifier.onStatusUpdate("error_fetching_serial_number")
                         promise.reject(
                             "ERROR_FETCH_SERIAL_NUMBER",
