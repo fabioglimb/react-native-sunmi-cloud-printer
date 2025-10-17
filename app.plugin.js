@@ -1,19 +1,14 @@
 /**
  * Expo Config Plugin for react-native-sunmi-cloud-printer
  * 
- * This module now uses the Sunmi Printer Library from Maven Central,
+ * This module now uses com.sunmi:external-printerlibrary2 from Maven Central,
  * so no custom repository setup is needed.
  * 
- * This plugin is kept for future customizations if needed.
+ * The library is automatically resolved via Gradle's standard dependency management.
  */
 
-/**
- * Main plugin - currently a pass-through as Maven handles dependencies
- */
 const withSunmiCloudPrinter = (config) => {
-  // The library is now available via Maven Central (com.sunmi:printerlibrary:1.0.14)
-  // No custom configuration needed
-  console.log('[Sunmi] Using Sunmi Printer Library from Maven Central');
+  console.log('[Sunmi] Using external-printerlibrary2 from Maven Central (com.sunmi:external-printerlibrary2:1.0.14)');
   return config;
 };
 
