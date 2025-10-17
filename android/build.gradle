@@ -1,7 +1,7 @@
 apply plugin: 'com.android.library'
 
 group = 'expo.modules.sunmicloudprinter'
-version = '0.1.0'
+version = '0.4.5'
 
 def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
 apply from: expoModulesCorePlugin
@@ -35,14 +35,20 @@ android {
   namespace "expo.modules.sunmicloudprinter"
   defaultConfig {
     versionCode 1
-    versionName "0.1.0"
+    versionName "0.4.5"
   }
   lintOptions {
     abortOnError false
   }
 }
 
+repositories {
+  flatDir {
+    dirs 'libs'
+  }
+}
+
 dependencies {
   implementation 'androidx.activity:activity-ktx:1.9.1'
-  implementation files("${projectDir}/libs/externalprinterlibrary2-1.0.13-release.aar")
+  implementation(name: 'externalprinterlibrary2-1.0.13-release', ext: 'aar')
 }
