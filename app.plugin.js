@@ -64,11 +64,11 @@ const withSunmiSettingsGradle = (config) => {
         console.log('[Sunmi] ✅ Added AAR flatDir repository to existing dependencyResolutionManagement');
       } else {
         // No dependencyResolutionManagement found, create it
-        // Insert IMMEDIATELY after pluginManagement closing brace
-        const pluginManagementRegex = /(pluginManagement\s*\{[\s\S]*?\})\s*\n/;
+        // Insert AFTER plugins {} block (required in Gradle 8.13+)
+        const pluginsBlockRegex = /(plugins\s*\{[\s\S]*?\}\s*\n)/;
         
-        if (pluginManagementRegex.test(contents)) {
-          const drmBlock = `\n\ndependencyResolutionManagement {
+        if (pluginsBlockRegex.test(contents)) {
+          const drmBlock = `\ndependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         google()
@@ -77,8 +77,8 @@ const withSunmiSettingsGradle = (config) => {
             dirs "${packagePath}"
         }
     }
-}\n`;
-          contents = contents.replace(pluginManagementRegex, `$1${drmBlock}`);
+}\n\n`;
+          contents = contents.replace(pluginsBlockRegex, `$1${drmBlock}`);
           fs.writeFileSync(settingsGradlePath, contents, 'utf-8');
           console.log('[Sunmi] ✅ Created dependencyResolutionManagement block with AAR flatDir repository');
         } else {
