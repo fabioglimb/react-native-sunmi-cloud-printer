@@ -346,26 +346,19 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                if (serialNumber.isNotEmpty()) {
-                    // Use provided serial number
-                    printDebugLog("🟢 Calling startPrinterWifi with SN: $serialNumber")
-                    SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, serialNumber)
-                    printDebugLog("🟢 Entered network mode successfully")
-                    WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
-                    promise.resolve(null)
-                } else {
-                    // Get serial number from printer first
-                    printer.getDeviceSN { sn ->
-                        val snToUse = sn ?: ""
-                        printDebugLog("🟢 Calling startPrinterWifi with fetched SN: $snToUse")
-                        SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, snToUse)
-                        printDebugLog("🟢 Entered network mode successfully")
-                        WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
-                        promise.resolve(null)
-                    }
-                }
+                // Use provided serial number or empty string if not provided
+                // The Sunmi SDK will handle empty serial number internally
+                val snToUse = serialNumber.ifEmpty { "" }
+                printDebugLog("🟢 Calling startPrinterWifi with SN: ${if (snToUse.isEmpty()) "<empty>" else snToUse}")
+                
+                SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, snToUse)
+                
+                printDebugLog("🟢 Entered network mode successfully")
+                WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
+                promise.resolve(null)
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR entering network mode: ${e.message}")
+                WiFiConfigStatusNotifier.onStatusUpdate("failed")
                 promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
             }
         } else {
