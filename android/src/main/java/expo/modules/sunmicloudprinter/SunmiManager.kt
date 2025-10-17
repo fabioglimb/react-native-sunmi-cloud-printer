@@ -376,9 +376,8 @@ class SunmiManager {
                 
                 // WiFi list functionality not available in this SDK version
                 printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
-                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version")
+                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version", null)
                 return
-                promise.resolve()
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR getting WiFi list: ${e.message}")
                 promise.reject("ERROR_GET_WIFI_LIST", e.message, e)
@@ -397,9 +396,8 @@ class SunmiManager {
                 
                 // WiFi configuration functionality not available in this SDK version
                 printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
-                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version")
+                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version", null)
                 return
-                promise.resolve()
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR configuring WiFi: ${e.message}")
                 WiFiConfigStatusNotifier.onStatusUpdate("failed")
@@ -419,10 +417,8 @@ class SunmiManager {
                 
                 // WiFi configuration functionality not available in this SDK version
                 printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
-                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version")
+                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version", null)
                 return
-                printDebugLog("🟢 Quit WiFi config mode successfully")
-                promise.resolve()
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR quitting WiFi config: ${e.message}")
                 promise.reject("ERROR_QUIT_WIFI_CONFIG", e.message, e)
@@ -441,10 +437,8 @@ class SunmiManager {
                 
                 // WiFi configuration functionality not available in this SDK version
                 printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
-                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version")
+                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version", null)
                 return
-                printDebugLog("🟢 Deleted WiFi settings successfully")
-                promise.resolve()
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR deleting WiFi settings: ${e.message}")
                 promise.reject("ERROR_DELETE_WIFI", e.message, e)
