@@ -51,6 +51,7 @@ class SunmiManager {
     private var timeout: Long = 5000;
     private var cloudPrinter: CloudPrinter? = null
     private var manager: SunmiPrinterManager? = null
+    private var cachedSerialNumber: String? = null // Cache for printer serial number
     private var _devices: List<CloudPrinter> = emptyList()
     private var devices: List<CloudPrinter>
         get() = _devices
@@ -129,6 +130,9 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             printer.release(context)
+            // Clear cached serial number on disconnect
+            cachedSerialNumber = null
+            printDebugLog("🔵 Cleared cached serial number")
             promise.resolve()
         } else {
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
@@ -329,6 +333,9 @@ class SunmiManager {
                 
                 printer.getDeviceSN { serialNumber ->
                     printDebugLog("🟢 received printer serial number: $serialNumber")
+                    // Cache the serial number for later use in WiFi configuration
+                    cachedSerialNumber = serialNumber
+                    printDebugLog("🔵 Cached serial number: ${if (serialNumber?.isEmpty() == true) "<empty>" else "present"}")
                     PrinterSerialNumberNotifier.onSerialNumberReceived(serialNumber ?: "")
                 }
                 promise.resolve()
@@ -364,40 +371,36 @@ class SunmiManager {
                 return
             }
             
-            // If no serial number provided, try to get it from printer
-            if (serialNumber.isEmpty()) {
-                printDebugLog("🔵 No SN provided, fetching from printer...")
-                printer.getDeviceSN { sn ->
-                    val fetchedSn = sn ?: ""
-                    printDebugLog("🔵 Fetched SN from printer: ${if (fetchedSn.isEmpty()) "<empty>" else fetchedSn}")
-                    
-                    try {
-                        printDebugLog("🟢 Calling startPrinterWifi with fetched SN")
-                        SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, fetchedSn)
-                        printDebugLog("🟢 Entered network mode successfully")
-                        WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
-                        promise.resolve(null)
-                    } catch (e: Exception) {
-                        printDebugLog("🔴 ERROR entering network mode: ${e.message}")
-                        printDebugLog("🔴 Exception type: ${e.javaClass.name}")
-                        WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                        promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
-                    }
+            // Use provided serial number, or cached one, or empty string
+            val snToUse = when {
+                serialNumber.isNotEmpty() -> {
+                    printDebugLog("🔵 Using provided serial number: $serialNumber")
+                    serialNumber
                 }
-            } else {
-                // Use provided serial number
-                try {
-                    printDebugLog("🟢 Calling startPrinterWifi with provided SN: $serialNumber")
-                    SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, serialNumber)
-                    printDebugLog("🟢 Entered network mode successfully")
-                    WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
-                    promise.resolve(null)
-                } catch (e: Exception) {
-                    printDebugLog("🔴 ERROR entering network mode: ${e.message}")
-                    printDebugLog("🔴 Exception type: ${e.javaClass.name}")
-                    WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                    promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
+                cachedSerialNumber != null && cachedSerialNumber!!.isNotEmpty() -> {
+                    printDebugLog("🔵 Using cached serial number: $cachedSerialNumber")
+                    cachedSerialNumber!!
                 }
+                else -> {
+                    printDebugLog("🟡 WARNING: No serial number available, using empty string")
+                    ""
+                }
+            }
+            
+            try {
+                printDebugLog("🟢 Calling startPrinterWifi with SN: ${if (snToUse.isEmpty()) "<empty>" else snToUse}")
+                
+                SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, snToUse)
+                
+                printDebugLog("🟢 Entered network mode successfully")
+                WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
+                promise.resolve(null)
+            } catch (e: Exception) {
+                printDebugLog("🔴 ERROR entering network mode: ${e.message}")
+                printDebugLog("🔴 Exception type: ${e.javaClass.name}")
+                printDebugLog("🔴 Stack trace: ${e.stackTraceToString()}")
+                WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
             }
         } else {
             printDebugLog("🔴 ERROR: Printer not connected")
