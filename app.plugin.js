@@ -51,6 +51,15 @@ const withSunmiSettingsGradle = (config) => {
       const drmRepoRegex = /(dependencyResolutionManagement\s*\{[\s\S]*?repositories\s*\{)/;
       
       if (drmRepoRegex.test(contents)) {
+        // First, ensure repositoriesMode is set to PREFER_PROJECT
+        if (!contents.includes('repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)')) {
+          contents = contents.replace(
+            /dependencyResolutionManagement\s*\{/,
+            `dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)`
+          );
+        }
+        
         // Found existing dependencyResolutionManagement, add to it
         contents = contents.replace(
           drmRepoRegex,
@@ -69,6 +78,7 @@ const withSunmiSettingsGradle = (config) => {
         
         if (pluginsBlockRegex.test(contents)) {
           const drmBlock = `\ndependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
     repositories {
         google()
         mavenCentral()
