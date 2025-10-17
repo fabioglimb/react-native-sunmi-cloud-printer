@@ -14,6 +14,10 @@ import com.sunmi.externalprinterlibrary2.printer.CloudPrinter
 import com.sunmi.externalprinterlibrary2.style.AlignStyle
 import com.sunmi.externalprinterlibrary2.style.CloudPrinterStatus
 import com.sunmi.externalprinterlibrary2.style.ImageAlgorithm
+import com.sunmi.externalprinterlibrary.CloudPrinterManager
+import com.sunmi.externalprinterlibrary.WifiResult
+import com.sunmi.externalprinterlibrary.Router
+import com.sunmi.externalprinterlibrary.SetWifiCallback
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.CodedException
 import kotlinx.coroutines.delay
@@ -342,19 +346,12 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                // If serial number is empty, use null for initial network mode entry
-                val snToUse = if (serialNumber.isEmpty()) null else serialNumber
-                printDebugLog("🟢 Attempting to enter network mode with SN: ${snToUse ?: "null (initial mode)"}")
+                val snToUse = if (serialNumber.isEmpty()) currentPrinterSn else serialNumber
+                printDebugLog("🟢 Calling startPrinterWifi with SN: $snToUse")
                 
-                // Use reflection to call the method if it exists
-                try {
-                    val method = printer.javaClass.getMethod("enterNetworkMode", String::class.java)
-                    method.invoke(printer, snToUse)
-                } catch (e: NoSuchMethodException) {
-                    printDebugLog("🔴 ERROR: enterNetworkMode method not found on CloudPrinter")
-                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
-                    return
-                }
+                // Call the correct Sunmi SDK method: startPrinterWifi
+                CloudPrinterManager.startPrinterWifi(context, printer, snToUse)
+                
                 printDebugLog("🟢 Entered network mode successfully")
                 WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
                 promise.resolve()
@@ -372,12 +369,26 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                printDebugLog("🟢 Attempting to get WiFi list...")
+                printDebugLog("🟢 Calling searchPrinterWifiList...")
                 
-                // WiFi list functionality not available in this SDK version
-                printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
-                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version", null)
-                return
+                // Call the correct Sunmi SDK method: searchPrinterWifiList
+                CloudPrinterManager.searchPrinterWifiList(context, printer, object : WifiResult {
+                    override fun onRouterFound(router: Router) {
+                        printDebugLog("🟢 WiFi found: ${router.name}, signal: ${router.rssi}")
+                        // Notify through event emitter
+                        WiFiNetworkNotifier.onNetworkFound(router)
+                    }
+                    
+                    override fun onFinish() {
+                        printDebugLog("🟢 WiFi search completed")
+                        promise.resolve(null)
+                    }
+                    
+                    override fun onFailed() {
+                        printDebugLog("🔴 WiFi search failed")
+                        promise.reject("ERROR_WIFI_SEARCH_FAILED", "Failed to search WiFi networks", null)
+                    }
+                })
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR getting WiFi list: ${e.message}")
                 promise.reject("ERROR_GET_WIFI_LIST", e.message, e)
@@ -392,12 +403,32 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                printDebugLog("🟢 Attempting to configure WiFi: SSID=$ssid")
+                printDebugLog("🟢 Calling setPrinterWifi: SSID=$ssid")
                 
-                // WiFi configuration functionality not available in this SDK version
-                printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
-                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version", null)
-                return
+                // Convert SSID string to byte array (ESSID)
+                val essid = ssid.toByteArray(Charsets.UTF_8)
+                
+                WiFiConfigStatusNotifier.onStatusUpdate("will_start_config")
+                
+                // Call the correct Sunmi SDK method: setPrinterWifi
+                CloudPrinterManager.setPrinterWifi(context, printer, essid, password, object : SetWifiCallback {
+                    override fun onSetWifiSuccess() {
+                        printDebugLog("🟢 WiFi configuration saved to printer")
+                        WiFiConfigStatusNotifier.onStatusUpdate("saved")
+                    }
+                    
+                    override fun onConnectWifiSuccess() {
+                        printDebugLog("🟢 🟢 🟢 WiFi connected successfully")
+                        WiFiConfigStatusNotifier.onStatusUpdate("success")
+                        promise.resolve(null)
+                    }
+                    
+                    override fun onConnectWifiFailed() {
+                        printDebugLog("🔴 Failed to connect to WiFi")
+                        WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                        promise.reject("ERROR_WIFI_CONNECT_FAILED", "Failed to connect to WiFi network", null)
+                    }
+                })
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR configuring WiFi: ${e.message}")
                 WiFiConfigStatusNotifier.onStatusUpdate("failed")
@@ -413,12 +444,13 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                printDebugLog("🟢 Attempting to quit WiFi config mode...")
+                printDebugLog("🟢 Calling exitPrinterWifi...")
                 
-                // WiFi configuration functionality not available in this SDK version
-                printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
-                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version", null)
-                return
+                // Call the correct Sunmi SDK method: exitPrinterWifi
+                CloudPrinterManager.exitPrinterWifi(context, printer)
+                
+                printDebugLog("🟢 Exited WiFi config mode successfully")
+                promise.resolve(null)
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR quitting WiFi config: ${e.message}")
                 promise.reject("ERROR_QUIT_WIFI_CONFIG", e.message, e)
@@ -433,12 +465,13 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                printDebugLog("🟢 Attempting to delete WiFi settings...")
+                printDebugLog("🟢 Calling deletePrinterWifi...")
                 
-                // WiFi configuration functionality not available in this SDK version
-                printDebugLog("🔴 ERROR: WiFi configuration methods not available in this SDK version")
-                promise.reject("ERROR_NOT_SUPPORTED", "WiFi configuration methods not available in this SDK version", null)
-                return
+                // Call the correct Sunmi SDK method: deletePrinterWifi
+                CloudPrinterManager.deletePrinterWifi(context, printer)
+                
+                printDebugLog("🟢 Deleted WiFi settings successfully")
+                promise.resolve(null)
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR deleting WiFi settings: ${e.message}")
                 promise.reject("ERROR_DELETE_WIFI", e.message, e)
