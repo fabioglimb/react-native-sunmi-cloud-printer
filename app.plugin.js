@@ -69,7 +69,6 @@ const withSunmiSettingsGradle = (config) => {
         
         if (pluginsBlockRegex.test(contents)) {
           const drmBlock = `\ndependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         google()
         mavenCentral()
