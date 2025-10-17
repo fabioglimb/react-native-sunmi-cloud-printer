@@ -345,21 +345,59 @@ class SunmiManager {
     fun enterNetworkMode(context: Context, serialNumber: String, promise: Promise) {
         val printer = cloudPrinter
         if (printer != null) {
-            try {
-                // Use provided serial number or empty string if not provided
-                // The Sunmi SDK will handle empty serial number internally
-                val snToUse = serialNumber.ifEmpty { "" }
-                printDebugLog("🟢 Calling startPrinterWifi with SN: ${if (snToUse.isEmpty()) "<empty>" else snToUse}")
-                
-                SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, snToUse)
-                
-                printDebugLog("🟢 Entered network mode successfully")
-                WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
-                promise.resolve(null)
-            } catch (e: Exception) {
-                printDebugLog("🔴 ERROR entering network mode: ${e.message}")
-                WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
+            // WiFi configuration only works with Bluetooth-connected printers
+            val printerInfo = printer.info
+            val isBluetoothPrinter = printerInfo?.mac != null && printerInfo.mac?.isNotEmpty() == true
+            
+            printDebugLog("🔵 enterNetworkMode called")
+            printDebugLog("🔵 Printer info: mac=${printerInfo?.mac}, ip=${printerInfo?.ip}, name=${printerInfo?.name}")
+            printDebugLog("🔵 Is Bluetooth: $isBluetoothPrinter")
+            printDebugLog("🔵 Provided SN: ${if (serialNumber.isEmpty()) "<empty>" else serialNumber}")
+            
+            if (!isBluetoothPrinter) {
+                printDebugLog("🔴 ERROR: WiFi configuration requires Bluetooth connection")
+                promise.reject(
+                    "ERROR_BLUETOOTH_REQUIRED",
+                    "WiFi configuration only works with printers connected via Bluetooth. Please connect to the printer using Bluetooth first.",
+                    null
+                )
+                return
+            }
+            
+            // If no serial number provided, try to get it from printer
+            if (serialNumber.isEmpty()) {
+                printDebugLog("🔵 No SN provided, fetching from printer...")
+                printer.getDeviceSN { sn ->
+                    val fetchedSn = sn ?: ""
+                    printDebugLog("🔵 Fetched SN from printer: ${if (fetchedSn.isEmpty()) "<empty>" else fetchedSn}")
+                    
+                    try {
+                        printDebugLog("🟢 Calling startPrinterWifi with fetched SN")
+                        SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, fetchedSn)
+                        printDebugLog("🟢 Entered network mode successfully")
+                        WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
+                        promise.resolve(null)
+                    } catch (e: Exception) {
+                        printDebugLog("🔴 ERROR entering network mode: ${e.message}")
+                        printDebugLog("🔴 Exception type: ${e.javaClass.name}")
+                        WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                        promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
+                    }
+                }
+            } else {
+                // Use provided serial number
+                try {
+                    printDebugLog("🟢 Calling startPrinterWifi with provided SN: $serialNumber")
+                    SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, serialNumber)
+                    printDebugLog("🟢 Entered network mode successfully")
+                    WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
+                    promise.resolve(null)
+                } catch (e: Exception) {
+                    printDebugLog("🔴 ERROR entering network mode: ${e.message}")
+                    printDebugLog("🔴 Exception type: ${e.javaClass.name}")
+                    WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                    promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
+                }
             }
         } else {
             printDebugLog("🔴 ERROR: Printer not connected")
@@ -371,6 +409,20 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
+                // WiFi configuration only works with Bluetooth-connected printers
+                val printerInfo = printer.info
+                val isBluetoothPrinter = printerInfo?.mac != null && printerInfo.mac?.isNotEmpty() == true
+                
+                if (!isBluetoothPrinter) {
+                    printDebugLog("🔴 ERROR: WiFi list search requires Bluetooth connection")
+                    promise.reject(
+                        "ERROR_BLUETOOTH_REQUIRED",
+                        "WiFi configuration only works with printers connected via Bluetooth.",
+                        null
+                    )
+                    return
+                }
+                
                 printDebugLog("🟢 Calling searchPrinterWifiList...")
                 
                 SunmiPrinterManager.getInstance().searchPrinterWifiList(context, printer, object : WifiResult {

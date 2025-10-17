@@ -8,7 +8,6 @@
  */
 
 const withSunmiCloudPrinter = (config) => {
-  console.log('[Sunmi] Using external-printerlibrary2 from Maven Central (com.sunmi:external-printerlibrary2:1.0.14)');
   return config;
 };
 
