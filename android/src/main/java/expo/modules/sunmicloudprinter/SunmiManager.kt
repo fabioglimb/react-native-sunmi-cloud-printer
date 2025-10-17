@@ -371,7 +371,7 @@ class SunmiManager {
                 return
             }
             
-            // Use provided serial number, or cached one, or empty string
+            // Use provided serial number, or cached one
             val snToUse = when {
                 serialNumber.isNotEmpty() -> {
                     printDebugLog("🔵 Using provided serial number: $serialNumber")
@@ -382,8 +382,14 @@ class SunmiManager {
                     cachedSerialNumber!!
                 }
                 else -> {
-                    printDebugLog("🟡 WARNING: No serial number available, using empty string")
-                    ""
+                    printDebugLog("🔴 ERROR: No serial number available")
+                    WiFiConfigStatusNotifier.onStatusUpdate("error_no_serial_number")
+                    promise.reject(
+                        "ERROR_NO_SERIAL_NUMBER",
+                        "Serial number is required. Call getPrinterSerialNumber() first, wait for onPrinterSerialNumber event, then call enterNetworkMode() with the received SN or empty string to use cached SN.",
+                        null
+                    )
+                    return
                 }
             }
             
