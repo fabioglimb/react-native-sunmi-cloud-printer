@@ -236,8 +236,12 @@ export function printerConnectionListener(listener: (event: PrinterConnectionPay
 /**
  * Enter network configuration mode on the printer.
  * The printer must be connected via Bluetooth before calling this method.
- * Call this FIRST with empty string or the device SN to enter network mode.
- * @param serialNumber - Optional: The printer's serial number. Pass empty string "" to enter network mode.
+ * 
+ * @param serialNumber - Optional: The printer's serial number.
+ *   - If you have the serial number, pass it here
+ *   - If not provided or empty, it will try to work without it (may work if printer is physically paired)
+ * 
+ * NOTE: Some printers may work without a serial number if they are physically paired via Bluetooth.
  */
 export async function enterNetworkMode(serialNumber?: string): Promise<void> {
   return ReactNativeSunmiCloudPrinterModule.enterNetworkMode(serialNumber || '');
@@ -245,8 +249,10 @@ export async function enterNetworkMode(serialNumber?: string): Promise<void> {
 
 /**
  * Get the printer's serial number.
- * IMPORTANT: You must call enterNetworkMode('') FIRST before calling this method.
+ * The printer must be connected via Bluetooth before calling this method.
  * Listen to the `printerSerialNumberListener` for the result.
+ * 
+ * NOTE: This can be called independently. You don't need to call enterNetworkMode() first.
  */
 export async function getPrinterSerialNumber(): Promise<void> {
   return ReactNativeSunmiCloudPrinterModule.getPrinterSerialNumber();
@@ -254,7 +260,11 @@ export async function getPrinterSerialNumber(): Promise<void> {
 
 /**
  * Request the list of available WiFi networks from the printer.
- * Listen to the `wifiNetworkListener` and `wifiListCompleteListener` for results.
+ * 
+ * IMPORTANT: You must call enterNetworkMode() first to put the printer in WiFi configuration mode.
+ * 
+ * Listen to the `wifiNetworkListener` for each network found.
+ * Listen to the `wifiListCompleteListener` for scan completion.
  */
 export async function getWiFiList(): Promise<void> {
   return ReactNativeSunmiCloudPrinterModule.getWiFiList();
@@ -267,8 +277,16 @@ interface ConfigureWiFiProps {
 
 /**
  * Configure the printer to connect to a WiFi network.
- * Listen to the `wifiConfigStatusListener` for the result.
- * @param ssid - The WiFi network SSID
+ * 
+ * IMPORTANT: You must call enterNetworkMode() first to put the printer in WiFi configuration mode.
+ * 
+ * Listen to the `wifiConfigStatusListener` for status updates:
+ * - 'will_start_config': Configuration is starting
+ * - 'saved': WiFi settings saved to printer
+ * - 'success': Printer successfully connected to WiFi
+ * - 'failed': Connection failed
+ * 
+ * @param ssid - The WiFi network SSID (network name)
  * @param password - The WiFi network password
  */
 export async function configureWiFi({ ssid, password }: ConfigureWiFiProps): Promise<void> {
@@ -277,6 +295,7 @@ export async function configureWiFi({ ssid, password }: ConfigureWiFiProps): Pro
 
 /**
  * Exit the WiFi configuration mode.
+ * Call this after you're done configuring WiFi to return the printer to normal mode.
  */
 export async function quitWiFiConfig(): Promise<void> {
   return ReactNativeSunmiCloudPrinterModule.quitWiFiConfig();
@@ -284,6 +303,7 @@ export async function quitWiFiConfig(): Promise<void> {
 
 /**
  * Delete the WiFi settings from the printer.
+ * This removes any stored WiFi credentials from the printer.
  */
 export async function deleteWiFiSettings(): Promise<void> {
   return ReactNativeSunmiCloudPrinterModule.deleteWiFiSettings();
@@ -306,11 +326,17 @@ export function wifiListCompleteListener(listener: () => void) {
 
 /**
  * Listen for WiFi configuration status updates.
+ * 
  * Status values:
- * - 'entered_network_mode': Printer entered network configuration mode
+ * - 'fetching_serial_number': Attempting to fetch printer serial number
+ * - 'entered_network_mode': Printer entered network configuration mode successfully
  * - 'will_start_config': WiFi configuration is about to start
- * - 'success': WiFi configuration succeeded
- * - 'failed': WiFi configuration failed
+ * - 'saved': WiFi settings saved to printer
+ * - 'success': Printer successfully connected to WiFi network
+ * - 'failed': WiFi configuration or connection failed
+ * - 'error_no_serial_number': No serial number available (deprecated - now continues anyway)
+ * - 'error_empty_serial_number': Fetched serial number was empty (deprecated - now continues anyway)
+ * - 'error_fetching_serial_number': Failed to fetch serial number (deprecated - now continues anyway)
  */
 export function wifiConfigStatusListener(listener: (event: WiFiConfigStatusPayload) => void) {
   return ReactNativeSunmiCloudPrinterModule.addListener('onWiFiConfigStatus', listener);
@@ -318,6 +344,16 @@ export function wifiConfigStatusListener(listener: (event: WiFiConfigStatusPaylo
 
 /**
  * Listen for the printer's serial number.
+ * This event is fired when you call getPrinterSerialNumber().
+ * 
+ * @example
+ * const subscription = printerSerialNumberListener((event) => {
+ *   console.log('Printer SN:', event.serialNumber);
+ * });
+ * 
+ * await getPrinterSerialNumber();
+ * // ... wait for event
+ * subscription.remove(); // Clean up when done
  */
 export function printerSerialNumberListener(listener: (event: PrinterSerialNumberPayload) => void) {
   return ReactNativeSunmiCloudPrinterModule.addListener('onPrinterSerialNumber', listener);
