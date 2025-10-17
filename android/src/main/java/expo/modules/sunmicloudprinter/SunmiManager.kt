@@ -312,15 +312,28 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
+                printDebugLog("🟢 Attempting to get printer serial number...")
+                
+                // Check if method exists
+                val method = try {
+                    printer.javaClass.getMethod("getDeviceSN", kotlin.jvm.functions.Function1::class.java)
+                } catch (e: NoSuchMethodException) {
+                    printDebugLog("🔴 ERROR: getDeviceSN method not found on CloudPrinter")
+                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API. Must use Bluetooth manager.", e)
+                    return
+                }
+                
                 printer.getDeviceSN { serialNumber ->
                     printDebugLog("🟢 received printer serial number: $serialNumber")
                     PrinterSerialNumberNotifier.onSerialNumberReceived(serialNumber ?: "")
                 }
                 promise.resolve()
             } catch (e: Exception) {
+                printDebugLog("🔴 ERROR getting SN: ${e.message}")
                 promise.reject("ERROR_GET_SN", e.message, e)
             }
         } else {
+            printDebugLog("🔴 ERROR: Printer not connected")
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
         }
     }
@@ -329,14 +342,27 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
+                printDebugLog("🟢 Attempting to enter network mode with SN: $serialNumber")
+                
+                // Check if method exists
+                try {
+                    printer.javaClass.getMethod("enterNetworkMode", String::class.java)
+                } catch (e: NoSuchMethodException) {
+                    printDebugLog("🔴 ERROR: enterNetworkMode method not found on CloudPrinter")
+                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
+                    return
+                }
+                
                 printer.enterNetworkMode(serialNumber)
-                printDebugLog("🟢 entered network mode")
+                printDebugLog("🟢 Entered network mode successfully")
                 WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
                 promise.resolve()
             } catch (e: Exception) {
+                printDebugLog("🔴 ERROR entering network mode: ${e.message}")
                 promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
             }
         } else {
+            printDebugLog("🔴 ERROR: Printer not connected")
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
         }
     }
@@ -345,15 +371,28 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
+                printDebugLog("🟢 Attempting to get WiFi list...")
+                
+                // Check if method exists
+                try {
+                    printer.javaClass.getMethod("getWifiList", kotlin.jvm.functions.Function1::class.java)
+                } catch (e: NoSuchMethodException) {
+                    printDebugLog("🔴 ERROR: getWifiList method not found on CloudPrinter")
+                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
+                    return
+                }
+                
                 printer.getWifiList { wifiList ->
-                    printDebugLog("🟢 received WiFi list")
+                    printDebugLog("🟢 🟢 🟢 CALLBACK: received WiFi list with ${wifiList?.size ?: 0} networks")
                     WiFiNetworkNotifier.onNetworkListReceived(wifiList ?: emptyList())
                 }
                 promise.resolve()
             } catch (e: Exception) {
+                printDebugLog("🔴 ERROR getting WiFi list: ${e.message}")
                 promise.reject("ERROR_GET_WIFI_LIST", e.message, e)
             }
         } else {
+            printDebugLog("🔴 ERROR: Printer not connected")
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
         }
     }
@@ -362,22 +401,35 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
+                printDebugLog("🟢 Attempting to configure WiFi: SSID=$ssid")
+                
+                // Check if method exists
+                try {
+                    printer.javaClass.getMethod("connectAP", String::class.java, String::class.java, kotlin.jvm.functions.Function1::class.java)
+                } catch (e: NoSuchMethodException) {
+                    printDebugLog("🔴 ERROR: connectAP method not found on CloudPrinter")
+                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
+                    return
+                }
+                
                 WiFiConfigStatusNotifier.onStatusUpdate("will_start_config")
                 printer.connectAP(ssid, password) { success ->
                     if (success) {
-                        printDebugLog("🟢 WiFi configuration success")
+                        printDebugLog("🟢 🟢 🟢 CALLBACK: WiFi configuration success")
                         WiFiConfigStatusNotifier.onStatusUpdate("success")
                     } else {
-                        printDebugLog("🔴 WiFi configuration failed")
+                        printDebugLog("🔴 🔴 🔴 CALLBACK: WiFi configuration failed")
                         WiFiConfigStatusNotifier.onStatusUpdate("failed")
                     }
                 }
                 promise.resolve()
             } catch (e: Exception) {
+                printDebugLog("🔴 ERROR configuring WiFi: ${e.message}")
                 WiFiConfigStatusNotifier.onStatusUpdate("failed")
                 promise.reject("ERROR_CONFIG_WIFI", e.message, e)
             }
         } else {
+            printDebugLog("🔴 ERROR: Printer not connected")
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
         }
     }
@@ -386,13 +438,26 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
+                printDebugLog("🟢 Attempting to quit WiFi config mode...")
+                
+                // Check if method exists
+                try {
+                    printer.javaClass.getMethod("quitConnectAP")
+                } catch (e: NoSuchMethodException) {
+                    printDebugLog("🔴 ERROR: quitConnectAP method not found on CloudPrinter")
+                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
+                    return
+                }
+                
                 printer.quitConnectAP()
-                printDebugLog("🟢 quit WiFi config mode")
+                printDebugLog("🟢 Quit WiFi config mode successfully")
                 promise.resolve()
             } catch (e: Exception) {
+                printDebugLog("🔴 ERROR quitting WiFi config: ${e.message}")
                 promise.reject("ERROR_QUIT_WIFI_CONFIG", e.message, e)
             }
         } else {
+            printDebugLog("🔴 ERROR: Printer not connected")
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
         }
     }
@@ -401,13 +466,26 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
+                printDebugLog("🟢 Attempting to delete WiFi settings...")
+                
+                // Check if method exists
+                try {
+                    printer.javaClass.getMethod("deleteWifiSetting")
+                } catch (e: NoSuchMethodException) {
+                    printDebugLog("🔴 ERROR: deleteWifiSetting method not found on CloudPrinter")
+                    promise.reject("ERROR_METHOD_NOT_FOUND", "WiFi configuration methods not available on CloudPrinter API", e)
+                    return
+                }
+                
                 printer.deleteWifiSetting()
-                printDebugLog("🟢 deleted WiFi settings")
+                printDebugLog("🟢 Deleted WiFi settings successfully")
                 promise.resolve()
             } catch (e: Exception) {
+                printDebugLog("🔴 ERROR deleting WiFi settings: ${e.message}")
                 promise.reject("ERROR_DELETE_WIFI", e.message, e)
             }
         } else {
+            printDebugLog("🔴 ERROR: Printer not connected")
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
         }
     }
