@@ -402,7 +402,8 @@ class SunmiManager {
                 return
             }
             
-            // Use provided serial number, or cached one, or fetch it now
+            // Determine serial number to use - fallback chain: provided → cached → empty
+            // NOTE: Some printers may work without SN if physically paired
             val snToUse: String = when {
                 serialNumber.isNotEmpty() -> {
                     printDebugLog("🔵 Using provided serial number: $serialNumber")
@@ -413,63 +414,33 @@ class SunmiManager {
                     cachedSerialNumber!!
                 }
                 else -> {
-                    printDebugLog("🟡 No serial number available, fetching now...")
-                    WiFiConfigStatusNotifier.onStatusUpdate("fetching_serial_number")
-                    try {
-                        // Fetch serial number synchronously using runBlocking with timeout handling
-                        val fetchedSn = runBlocking {
-                            try {
-                                val sn = fetchSerialNumberSync(printer)
-                                printDebugLog("🟢 Successfully fetched serial number")
-                                
-                                // Give the printer some time to stabilize after fetching SN
-                                printDebugLog("🔵 Waiting 500ms for printer to stabilize...")
-                                delay(500L)
-                                
-                                sn
-                            } catch (e: TimeoutCancellationException) {
-                                printDebugLog("🔴 TIMEOUT: Serial number fetch took too long (5s)")
-                                throw Exception("Serial number fetch timeout after 5 seconds")
-                            }
-                        }
-                        
-                        if (fetchedSn.isNullOrEmpty()) {
-                            printDebugLog("🔴 ERROR: Fetched serial number is empty")
-                            WiFiConfigStatusNotifier.onStatusUpdate("error_empty_serial_number")
-                            promise.reject(
-                                "ERROR_EMPTY_SERIAL_NUMBER",
-                                "Printer returned empty serial number. Cannot proceed with WiFi configuration.",
-                                null
-                            )
-                            return
-                        }
-                        printDebugLog("🟢 Serial number ready: $fetchedSn")
-                        fetchedSn
-                    } catch (e: Exception) {
-                        printDebugLog("🔴 ERROR fetching serial number: ${e.message}")
-                        printDebugLog("🔴 Exception type: ${e.javaClass.name}")
-                        WiFiConfigStatusNotifier.onStatusUpdate("error_fetching_serial_number")
-                        promise.reject(
-                            "ERROR_FETCH_SERIAL_NUMBER",
-                            "Failed to fetch printer serial number: ${e.message}",
-                            e
-                        )
-                        return
-                    }
+                    printDebugLog("🟡 WARNING: No serial number available, trying with empty string")
+                    printDebugLog("🟡 This may work if printer is physically paired")
+                    ""
                 }
             }
             
             try {
-                printDebugLog("🟢 Calling startPrinterWifi with SN: ${if (snToUse.isEmpty()) "<empty>" else snToUse}")
+                printDebugLog("🟢 Attempting to enter network mode...")
+                printDebugLog("🔵 Serial number to use: ${if (snToUse.isEmpty()) "<EMPTY STRING>" else snToUse}")
+                printDebugLog("🔵 Context: $context")
+                printDebugLog("🔵 Printer MAC: ${printerInfo?.mac}")
                 
+                // Call Sunmi SDK to enter WiFi configuration mode
                 SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, snToUse)
                 
-                printDebugLog("🟢 Entered network mode successfully")
+                printDebugLog("🟢 🟢 🟢 Entered network mode successfully!")
+                printDebugLog("🔵 You can now scan for WiFi networks using getWiFiList()")
                 WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
                 promise.resolve(null)
             } catch (e: Exception) {
-                printDebugLog("🔴 ERROR entering network mode: ${e.message}")
+                printDebugLog("🔴 ERROR entering network mode!")
+                printDebugLog("🔴 Error message: ${e.message}")
                 printDebugLog("🔴 Exception type: ${e.javaClass.name}")
+                printDebugLog("🔴 Possible causes:")
+                printDebugLog("🔴   - Printer not in pairing mode")
+                printDebugLog("🔴   - Bluetooth connection unstable")
+                printDebugLog("🔴   - Serial number required but not provided")
                 printDebugLog("🔴 Stack trace: ${e.stackTraceToString()}")
                 WiFiConfigStatusNotifier.onStatusUpdate("failed")
                 promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
@@ -484,9 +455,15 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
+                printDebugLog("🔵 getWiFiList called")
+                
                 // WiFi configuration only works with Bluetooth-connected printers
                 val printerInfo = printer.cloudPrinterInfo
                 val isBluetoothPrinter = printerInfo?.mac != null && printerInfo.mac.isNotEmpty()
+                
+                printDebugLog("🔵 Printer: ${printerInfo?.name}")
+                printDebugLog("🔵 MAC: ${printerInfo?.mac}")
+                printDebugLog("🔵 Is Bluetooth: $isBluetoothPrinter")
                 
                 if (!isBluetoothPrinter) {
                     printDebugLog("🔴 ERROR: WiFi list search requires Bluetooth connection")
@@ -498,27 +475,42 @@ class SunmiManager {
                     return
                 }
                 
-                printDebugLog("🟢 Calling searchPrinterWifiList...")
+                printDebugLog("🟢 Starting WiFi network scan...")
+                printDebugLog("🔵 NOTE: Make sure you called enterNetworkMode() first!")
+                
+                // Clear previous networks
+                WiFiNetworkNotifier.clearNetworks()
                 
                 SunmiPrinterManager.getInstance().searchPrinterWifiList(context, printer, object : WifiResult {
                     override fun onRouterFound(router: Router) {
-                        printDebugLog("🟢 WiFi found: ${router.name}, signal: ${router.rssi}")
+                        printDebugLog("🟢 WiFi network found!")
+                        printDebugLog("🔵   SSID: ${router.essid}")
+                        printDebugLog("🔵   Name: ${router.name}")
+                        printDebugLog("🔵   Signal: ${router.rssi} dBm")
+                        printDebugLog("🔵   Password protected: ${router.isHasPwd}")
+                        
                         // Notify through event emitter
                         WiFiNetworkNotifier.onNetworkFound(router)
                     }
                     
                     override fun onFinish() {
-                        printDebugLog("🟢 WiFi search completed")
+                        printDebugLog("🟢 🟢 🟢 WiFi network scan completed!")
+                        printDebugLog("🔵 All available networks have been found")
                         promise.resolve(null)
                     }
                     
                     override fun onFailed() {
-                        printDebugLog("🔴 WiFi search failed")
-                        promise.reject("ERROR_WIFI_SEARCH_FAILED", "Failed to search WiFi networks", null)
+                        printDebugLog("🔴 WiFi network scan failed!")
+                        printDebugLog("🔴 Make sure you called enterNetworkMode() first")
+                        promise.reject("ERROR_WIFI_SEARCH_FAILED", "Failed to search WiFi networks. Did you call enterNetworkMode() first?", null)
                     }
                 })
+                
+                printDebugLog("🔵 WiFi scan initiated, waiting for results...")
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR getting WiFi list: ${e.message}")
+                printDebugLog("🔴 Exception type: ${e.javaClass.name}")
+                printDebugLog("🔴 Stack trace: ${e.stackTraceToString()}")
                 promise.reject("ERROR_GET_WIFI_LIST", e.message, e)
             }
         } else {
@@ -531,11 +523,18 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                printDebugLog("🟢 Calling setPrinterWifi: SSID=$ssid")
+                printDebugLog("🔵 configureWiFi called")
+                printDebugLog("🔵 SSID: $ssid")
+                printDebugLog("🔵 Password length: ${password.length}")
+                printDebugLog("🔵 Printer: ${printer.cloudPrinterInfo?.name}")
                 
+                // Convert SSID to ByteArray as required by Sunmi SDK
                 val essid = ssid.toByteArray(Charsets.UTF_8)
+                printDebugLog("🔵 ESSID bytes length: ${essid.size}")
+                
                 WiFiConfigStatusNotifier.onStatusUpdate("will_start_config")
                 
+                printDebugLog("🟢 Calling setPrinterWifi...")
                 SunmiPrinterManager.getInstance().setPrinterWifi(context, printer, essid, password, object : SetWifiCallback {
                     override fun onSetWifiSuccess() {
                         printDebugLog("🟢 WiFi configuration saved to printer")
@@ -543,19 +542,24 @@ class SunmiManager {
                     }
                     
                     override fun onConnectWifiSuccess() {
-                        printDebugLog("🟢 🟢 🟢 WiFi connected successfully")
+                        printDebugLog("🟢 🟢 🟢 WiFi connected successfully!")
                         WiFiConfigStatusNotifier.onStatusUpdate("success")
                         promise.resolve(null)
                     }
                     
                     override fun onConnectWifiFailed() {
-                        printDebugLog("🔴 Failed to connect to WiFi")
+                        printDebugLog("🔴 Failed to connect to WiFi network")
+                        printDebugLog("🔴 This could be due to: wrong password, network not available, or signal too weak")
                         WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                        promise.reject("ERROR_WIFI_CONNECT_FAILED", "Failed to connect to WiFi network", null)
+                        promise.reject("ERROR_WIFI_CONNECT_FAILED", "Failed to connect to WiFi network. Check password and signal strength.", null)
                     }
                 })
+                
+                printDebugLog("🔵 setPrinterWifi call initiated, waiting for callbacks...")
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR configuring WiFi: ${e.message}")
+                printDebugLog("🔴 Exception type: ${e.javaClass.name}")
+                printDebugLog("🔴 Stack trace: ${e.stackTraceToString()}")
                 WiFiConfigStatusNotifier.onStatusUpdate("failed")
                 promise.reject("ERROR_CONFIG_WIFI", e.message, e)
             }
