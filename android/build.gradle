@@ -42,9 +42,15 @@ android {
   }
 }
 
+repositories {
+  flatDir {
+    dirs 'libs'
+  }
+}
+
 dependencies {
   implementation 'androidx.activity:activity-ktx:1.9.1'
   
-  // Sunmi Cloud Printer AAR - using direct file path (no repository needed!)
-  implementation files('libs/externalprinterlibrary2-1.0.13-release.aar')
+  // Sunmi Cloud Printer AAR - using flatDir repository
+  implementation(name: 'externalprinterlibrary2-1.0.13-release', ext: 'aar')
 }
