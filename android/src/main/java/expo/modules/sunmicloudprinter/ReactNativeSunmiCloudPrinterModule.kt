@@ -14,6 +14,10 @@ import expo.modules.sunmicloudprinter.SunmiManager.Companion.printDebugLog
 
 const val UPDATE_PRINTERS_EVENT_NAME = "onUpdatePrinters"
 const val PRINTER_CONNECTION_UPDATE_EVENT_NAME = "onPrinterConnectionUpdate"
+const val WIFI_NETWORK_RECEIVED_EVENT_NAME = "onWiFiNetworkReceived"
+const val WIFI_LIST_COMPLETE_EVENT_NAME = "onWiFiListComplete"
+const val WIFI_CONFIG_STATUS_EVENT_NAME = "onWiFiConfigStatus"
+const val PRINTER_SERIAL_NUMBER_EVENT_NAME = "onPrinterSerialNumber"
 
 class ReactNativeSunmiCloudPrinterModule : Module() {
 
@@ -22,6 +26,9 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
 
   private var printersObserver: (devices: List<CloudPrinter>) -> Unit = {}
   private var printerConnectionObserver: (connected: Boolean) -> Unit = {}
+  private var wifiNetworkObserver: (networks: List<Any>) -> Unit = {}
+  private var wifiConfigStatusObserver: (status: String) -> Unit = {}
+  private var printerSerialNumberObserver: (serialNumber: String) -> Unit = {}
 
   // Each module class must implement the definition function. The definition consists of components
   // that describes the module's functionality and behavior.
@@ -33,7 +40,7 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
     Name("ReactNativeSunmiCloudPrinter")
 
     // Defines event names that the module can send to JavaScript.
-    Events(UPDATE_PRINTERS_EVENT_NAME, PRINTER_CONNECTION_UPDATE_EVENT_NAME)
+    Events(UPDATE_PRINTERS_EVENT_NAME, PRINTER_CONNECTION_UPDATE_EVENT_NAME, WIFI_NETWORK_RECEIVED_EVENT_NAME, WIFI_LIST_COMPLETE_EVENT_NAME, WIFI_CONFIG_STATUS_EVENT_NAME, PRINTER_SERIAL_NUMBER_EVENT_NAME)
 
     OnCreate {
       printersObserver = {
@@ -51,11 +58,35 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
         this@ReactNativeSunmiCloudPrinterModule.sendEvent(PRINTER_CONNECTION_UPDATE_EVENT_NAME, result)
       }
       PrinterConnectionNotifier.registerObserver(printerConnectionObserver)
+
+      wifiNetworkObserver = { networks ->
+        printDebugLog("notification: received WiFi networks [onWiFiNetworkReceived]")
+        val result = bundleOf("networks" to networks)
+        this@ReactNativeSunmiCloudPrinterModule.sendEvent(WIFI_NETWORK_RECEIVED_EVENT_NAME, result)
+      }
+      WiFiNetworkNotifier.registerObserver(wifiNetworkObserver)
+
+      wifiConfigStatusObserver = { status ->
+        printDebugLog("notification: WiFi config status: $status [onWiFiConfigStatus]")
+        val result = bundleOf("status" to status)
+        this@ReactNativeSunmiCloudPrinterModule.sendEvent(WIFI_CONFIG_STATUS_EVENT_NAME, result)
+      }
+      WiFiConfigStatusNotifier.registerObserver(wifiConfigStatusObserver)
+
+      printerSerialNumberObserver = { serialNumber ->
+        printDebugLog("notification: received printer SN: $serialNumber [onPrinterSerialNumber]")
+        val result = bundleOf("serialNumber" to serialNumber)
+        this@ReactNativeSunmiCloudPrinterModule.sendEvent(PRINTER_SERIAL_NUMBER_EVENT_NAME, result)
+      }
+      PrinterSerialNumberNotifier.registerObserver(printerSerialNumberObserver)
     }
 
     OnDestroy {
       PrintersNotifier.deregisterObserver(printersObserver)
       PrinterConnectionNotifier.deregisterObserver(printerConnectionObserver)
+      WiFiNetworkNotifier.deregisterObserver(wifiNetworkObserver)
+      WiFiConfigStatusNotifier.deregisterObserver(wifiConfigStatusObserver)
+      PrinterSerialNumberNotifier.deregisterObserver(printerSerialNumberObserver)
     }
 
     // Enables the module to be used as a native view. Definition components that are accepted as part of
@@ -200,6 +231,32 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
 
     AsyncFunction("getDeviceState") { promise: Promise ->
       sunmiManager.getDeviceState(promise)
+    }
+
+    // WiFi Configuration methods
+
+    AsyncFunction("getPrinterSerialNumber") { promise: Promise ->
+      sunmiManager.getPrinterSerialNumber(promise)
+    }
+
+    AsyncFunction("enterNetworkMode") { serialNumber: String, promise: Promise ->
+      sunmiManager.enterNetworkMode(serialNumber, promise)
+    }
+
+    AsyncFunction("getWiFiList") { promise: Promise ->
+      sunmiManager.getWiFiList(promise)
+    }
+
+    AsyncFunction("configureWiFi") { ssid: String, password: String, promise: Promise ->
+      sunmiManager.configureWiFi(ssid, password, promise)
+    }
+
+    AsyncFunction("quitWiFiConfig") { promise: Promise ->
+      sunmiManager.quitWiFiConfig(promise)
+    }
+
+    AsyncFunction("deleteWiFiSettings") { promise: Promise ->
+      sunmiManager.deleteWiFiSettings(promise)
     }
   }
 }

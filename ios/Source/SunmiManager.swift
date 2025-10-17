@@ -5,6 +5,13 @@ protocol SunmiManagerDelegate: AnyObject {
   func didUpdateDevices(list: [SunmiDevice]) -> Void
   func didConnectPrinter() -> Void
   func didDisconnectPrinter() -> Void
+  func didReceiveWiFiNetwork(network: [String: Any]) -> Void
+  func didFinishReceivingWiFiList() -> Void
+  func didEnterNetworkMode() -> Void
+  func didStartConfigPrinter() -> Void
+  func didConfigPrinterSuccess() -> Void
+  func didConfigPrinterFail() -> Void
+  func didReceivePrinterSN(serialNumber: String) -> Void
 }
 
 class SunmiManager: NSObject {
@@ -372,6 +379,64 @@ class SunmiManager: NSObject {
     command.getDeviceState()
     sendAndReceivePrinterState(promise: promise)
   }
+  
+  // -----------------------
+  // WiFi Configuration APIs
+  // -----------------------
+  
+  func getPrinterSerialNumber(promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    manager.getPrinterSN()
+    promise.resolve()
+  }
+  
+  func enterNetworkMode(serialNumber: String, promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    manager.enterNetworkMode(serialNumber)
+    promise.resolve()
+  }
+  
+  func getWiFiList(promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    manager.getWifiList()
+    promise.resolve()
+  }
+  
+  func configureWiFi(ssid: String, password: String, promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    manager.connectAP(ssid, password: password)
+    promise.resolve()
+  }
+  
+  func quitWiFiConfig(promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    manager.quitConnectAP()
+    promise.resolve()
+  }
+  
+  func deleteWiFiSettings(promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    manager.deleteWifiSetting()
+    promise.resolve()
+  }
 }
 
 extension SunmiManager: PrinterManagerDelegate {
@@ -401,6 +466,45 @@ extension SunmiManager: PrinterManagerDelegate {
     printDebugLog("🔴 did disconnect from Bluetooth printer")
     currentPrinter = nil
     delegate?.didDisconnectPrinter()
+  }
+  
+  func receiveDeviceSn(_ sn: String?) {
+    printDebugLog("🟢 received printer serial number: \(sn ?? "unknown")")
+    if let sn = sn {
+      delegate?.didReceivePrinterSN(serialNumber: sn)
+    }
+  }
+  
+  func didEnterNetworkMode() {
+    printDebugLog("🟢 entered network mode")
+    delegate?.didEnterNetworkMode()
+  }
+  
+  func receiveAPInfo(_ apInfo: [AnyHashable : Any]?) {
+    printDebugLog("🟢 received WiFi network info")
+    if let apInfo = apInfo as? [String: Any] {
+      delegate?.didReceiveWiFiNetwork(network: apInfo)
+    }
+  }
+  
+  func didReceiveAllApInfo() {
+    printDebugLog("🟢 finished receiving all WiFi networks")
+    delegate?.didFinishReceivingWiFiList()
+  }
+  
+  func willStartConfigPrinter() {
+    printDebugLog("🟢 will start configuring WiFi")
+    delegate?.didStartConfigPrinter()
+  }
+  
+  func configPrinterSuccess() {
+    printDebugLog("🟢 WiFi configuration success")
+    delegate?.didConfigPrinterSuccess()
+  }
+  
+  func configPrinterFail() {
+    printDebugLog("🔴 WiFi configuration failed")
+    delegate?.didConfigPrinterFail()
   }
 }
 

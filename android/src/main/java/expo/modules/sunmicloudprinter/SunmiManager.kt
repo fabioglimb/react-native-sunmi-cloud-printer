@@ -304,6 +304,114 @@ class SunmiManager {
         }
     }
 
+    // -----------------------
+    // WiFi Configuration APIs
+    // -----------------------
+
+    fun getPrinterSerialNumber(promise: Promise) {
+        val printer = cloudPrinter
+        if (printer != null) {
+            try {
+                printer.getDeviceSN { serialNumber ->
+                    printDebugLog("🟢 received printer serial number: $serialNumber")
+                    PrinterSerialNumberNotifier.onSerialNumberReceived(serialNumber ?: "")
+                }
+                promise.resolve()
+            } catch (e: Exception) {
+                promise.reject("ERROR_GET_SN", e.message, e)
+            }
+        } else {
+            promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
+        }
+    }
+
+    fun enterNetworkMode(serialNumber: String, promise: Promise) {
+        val printer = cloudPrinter
+        if (printer != null) {
+            try {
+                printer.enterNetworkMode(serialNumber)
+                printDebugLog("🟢 entered network mode")
+                WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
+                promise.resolve()
+            } catch (e: Exception) {
+                promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
+            }
+        } else {
+            promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
+        }
+    }
+
+    fun getWiFiList(promise: Promise) {
+        val printer = cloudPrinter
+        if (printer != null) {
+            try {
+                printer.getWifiList { wifiList ->
+                    printDebugLog("🟢 received WiFi list")
+                    WiFiNetworkNotifier.onNetworkListReceived(wifiList ?: emptyList())
+                }
+                promise.resolve()
+            } catch (e: Exception) {
+                promise.reject("ERROR_GET_WIFI_LIST", e.message, e)
+            }
+        } else {
+            promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
+        }
+    }
+
+    fun configureWiFi(ssid: String, password: String, promise: Promise) {
+        val printer = cloudPrinter
+        if (printer != null) {
+            try {
+                WiFiConfigStatusNotifier.onStatusUpdate("will_start_config")
+                printer.connectAP(ssid, password) { success ->
+                    if (success) {
+                        printDebugLog("🟢 WiFi configuration success")
+                        WiFiConfigStatusNotifier.onStatusUpdate("success")
+                    } else {
+                        printDebugLog("🔴 WiFi configuration failed")
+                        WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                    }
+                }
+                promise.resolve()
+            } catch (e: Exception) {
+                WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                promise.reject("ERROR_CONFIG_WIFI", e.message, e)
+            }
+        } else {
+            promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
+        }
+    }
+
+    fun quitWiFiConfig(promise: Promise) {
+        val printer = cloudPrinter
+        if (printer != null) {
+            try {
+                printer.quitConnectAP()
+                printDebugLog("🟢 quit WiFi config mode")
+                promise.resolve()
+            } catch (e: Exception) {
+                promise.reject("ERROR_QUIT_WIFI_CONFIG", e.message, e)
+            }
+        } else {
+            promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
+        }
+    }
+
+    fun deleteWiFiSettings(promise: Promise) {
+        val printer = cloudPrinter
+        if (printer != null) {
+            try {
+                printer.deleteWifiSetting()
+                printDebugLog("🟢 deleted WiFi settings")
+                promise.resolve()
+            } catch (e: Exception) {
+                promise.reject("ERROR_DELETE_WIFI", e.message, e)
+            }
+        } else {
+            promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
+        }
+    }
+
     companion object {
         @JvmStatic
         fun printDebugLog(message: String) {

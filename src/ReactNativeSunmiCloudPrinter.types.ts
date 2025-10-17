@@ -50,6 +50,24 @@ export type PrinterConnectionPayload = {
   connected: boolean;
 };
 
+export type WiFiNetwork = {
+  ssid: string;
+  signalStrength?: number;
+  requiresPassword: boolean;
+};
+
+export type WiFiListPayload = {
+  networks: WiFiNetwork[];
+};
+
+export type WiFiConfigStatusPayload = {
+  status: 'entered_network_mode' | 'will_start_config' | 'success' | 'failed';
+};
+
+export type PrinterSerialNumberPayload = {
+  serialNumber: string;
+};
+
 export type ReactNativeSunmiCloudPrinterViewProps = {
   name: string;
 };

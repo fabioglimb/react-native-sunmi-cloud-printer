@@ -9,11 +9,14 @@ import {
   SunmiCloudPrinter,
   SunmiError,
   PrinterConnectionPayload,
+  WiFiNetwork,
+  WiFiConfigStatusPayload,
+  PrinterSerialNumberPayload,
 } from './ReactNativeSunmiCloudPrinter.types';
 import ReactNativeSunmiCloudPrinterModule from './ReactNativeSunmiCloudPrinterModule';
 import ReactNativeSunmiCloudPrinterView from './ReactNativeSunmiCloudPrinterView';
 
-export { PrinterInterface, SunmiCloudPrinter, SunmiError };
+export { PrinterInterface, SunmiCloudPrinter, SunmiError, WiFiNetwork };
 
 export function setup() {
   if (Platform.OS === 'ios') {
@@ -224,6 +227,98 @@ export function printersListener(listener: (event: PrintersEventPayload) => void
 
 export function printerConnectionListener(listener: (event: PrinterConnectionPayload) => void) {
   return ReactNativeSunmiCloudPrinterModule.addListener('onPrinterConnectionUpdate', listener);
+}
+
+// ---------------
+// WiFi Configuration APIs
+// ---------------
+
+/**
+ * Get the printer's serial number. Required before entering network mode.
+ * Listen to the `printerSerialNumberListener` for the result.
+ */
+export async function getPrinterSerialNumber(): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.getPrinterSerialNumber();
+}
+
+/**
+ * Enter network configuration mode on the printer.
+ * The printer must be connected via Bluetooth before calling this method.
+ * @param serialNumber - The printer's serial number obtained from getPrinterSerialNumber
+ */
+export async function enterNetworkMode(serialNumber: string): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.enterNetworkMode(serialNumber);
+}
+
+/**
+ * Request the list of available WiFi networks from the printer.
+ * Listen to the `wifiNetworkListener` and `wifiListCompleteListener` for results.
+ */
+export async function getWiFiList(): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.getWiFiList();
+}
+
+interface ConfigureWiFiProps {
+  ssid: string;
+  password: string;
+}
+
+/**
+ * Configure the printer to connect to a WiFi network.
+ * Listen to the `wifiConfigStatusListener` for the result.
+ * @param ssid - The WiFi network SSID
+ * @param password - The WiFi network password
+ */
+export async function configureWiFi({ ssid, password }: ConfigureWiFiProps): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.configureWiFi(ssid, password);
+}
+
+/**
+ * Exit the WiFi configuration mode.
+ */
+export async function quitWiFiConfig(): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.quitWiFiConfig();
+}
+
+/**
+ * Delete the WiFi settings from the printer.
+ */
+export async function deleteWiFiSettings(): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.deleteWiFiSettings();
+}
+
+/**
+ * Listen for WiFi network information received from the printer.
+ * This event is fired for each network when calling getWiFiList().
+ */
+export function wifiNetworkListener(listener: (event: { network: any }) => void) {
+  return ReactNativeSunmiCloudPrinterModule.addListener('onWiFiNetworkReceived', listener);
+}
+
+/**
+ * Listen for the completion of the WiFi list retrieval.
+ */
+export function wifiListCompleteListener(listener: () => void) {
+  return ReactNativeSunmiCloudPrinterModule.addListener('onWiFiListComplete', listener);
+}
+
+/**
+ * Listen for WiFi configuration status updates.
+ * Status values:
+ * - 'entered_network_mode': Printer entered network configuration mode
+ * - 'will_start_config': WiFi configuration is about to start
+ * - 'success': WiFi configuration succeeded
+ * - 'failed': WiFi configuration failed
+ */
+export function wifiConfigStatusListener(listener: (event: WiFiConfigStatusPayload) => void) {
+  return ReactNativeSunmiCloudPrinterModule.addListener('onWiFiConfigStatus', listener);
+}
+
+/**
+ * Listen for the printer's serial number.
+ */
+export function printerSerialNumberListener(listener: (event: PrinterSerialNumberPayload) => void) {
+  return ReactNativeSunmiCloudPrinterModule.addListener('onPrinterSerialNumber', listener);
 }
 
 export { ReactNativeSunmiCloudPrinterView, ReactNativeSunmiCloudPrinterViewProps, PrintersEventPayload };
