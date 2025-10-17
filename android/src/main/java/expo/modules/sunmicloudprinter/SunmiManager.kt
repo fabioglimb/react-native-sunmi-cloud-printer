@@ -346,15 +346,24 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                val snToUse = if (serialNumber.isEmpty()) printer.sn else serialNumber
-                printDebugLog("🟢 Calling startPrinterWifi with SN: $snToUse")
-                
-                // WiFi methods are on SunmiPrinterManager, not CloudPrinterManager
-                SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, snToUse)
-                
-                printDebugLog("🟢 Entered network mode successfully")
-                WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
-                promise.resolve(null)
+                if (serialNumber.isNotEmpty()) {
+                    // Use provided serial number
+                    printDebugLog("🟢 Calling startPrinterWifi with SN: $serialNumber")
+                    SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, serialNumber)
+                    printDebugLog("🟢 Entered network mode successfully")
+                    WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
+                    promise.resolve(null)
+                } else {
+                    // Get serial number from printer first
+                    printer.getDeviceSN { sn ->
+                        val snToUse = sn ?: ""
+                        printDebugLog("🟢 Calling startPrinterWifi with fetched SN: $snToUse")
+                        SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, snToUse)
+                        printDebugLog("🟢 Entered network mode successfully")
+                        WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
+                        promise.resolve(null)
+                    }
+                }
             } catch (e: Exception) {
                 printDebugLog("🔴 ERROR entering network mode: ${e.message}")
                 promise.reject("ERROR_ENTER_NETWORK_MODE", e.message, e)
