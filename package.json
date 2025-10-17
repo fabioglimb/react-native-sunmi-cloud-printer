@@ -1,6 +1,6 @@
 {
   "name": "react-native-sunmi-cloud-printer",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "React Native Sunmi Cloud Printer SDK",
   "main": "build/index.js",
   "exports": {
@@ -11,6 +11,7 @@
     "./app.plugin.js": "./app.plugin.js"
   },
   "types": "build/index.d.ts",
+  "app": "./app.plugin.js",
   "files": [
     "build",
     "android",
