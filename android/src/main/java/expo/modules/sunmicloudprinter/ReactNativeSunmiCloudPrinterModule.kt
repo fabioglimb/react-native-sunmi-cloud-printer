@@ -240,23 +240,23 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
     }
 
     AsyncFunction("enterNetworkMode") { serialNumber: String, promise: Promise ->
-      sunmiManager.enterNetworkMode(serialNumber, promise)
+      sunmiManager.enterNetworkMode(context, serialNumber, promise)
     }
 
     AsyncFunction("getWiFiList") { promise: Promise ->
-      sunmiManager.getWiFiList(promise)
+      sunmiManager.getWiFiList(context, promise)
     }
 
     AsyncFunction("configureWiFi") { ssid: String, password: String, promise: Promise ->
-      sunmiManager.configureWiFi(ssid, password, promise)
+      sunmiManager.configureWiFi(context, ssid, password, promise)
     }
 
     AsyncFunction("quitWiFiConfig") { promise: Promise ->
-      sunmiManager.quitWiFiConfig(promise)
+      sunmiManager.quitWiFiConfig(context, promise)
     }
 
     AsyncFunction("deleteWiFiSettings") { promise: Promise ->
-      sunmiManager.deleteWiFiSettings(promise)
+      sunmiManager.deleteWiFiSettings(context, promise)
     }
   }
 }

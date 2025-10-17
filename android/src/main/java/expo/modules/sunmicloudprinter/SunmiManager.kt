@@ -342,11 +342,11 @@ class SunmiManager {
         }
     }
 
-    fun enterNetworkMode(serialNumber: String, promise: Promise) {
+    fun enterNetworkMode(context: Context, serialNumber: String, promise: Promise) {
         val printer = cloudPrinter
         if (printer != null) {
             try {
-                val snToUse = if (serialNumber.isEmpty()) currentPrinterSn else serialNumber
+                val snToUse = if (serialNumber.isEmpty()) printer.sn else serialNumber
                 printDebugLog("🟢 Calling startPrinterWifi with SN: $snToUse")
                 
                 // WiFi methods are on SunmiPrinterManager, not CloudPrinterManager
@@ -365,7 +365,7 @@ class SunmiManager {
         }
     }
 
-    fun getWiFiList(promise: Promise) {
+    fun getWiFiList(context: Context, promise: Promise) {
         val printer = cloudPrinter
         if (printer != null) {
             try {
@@ -398,7 +398,7 @@ class SunmiManager {
         }
     }
 
-    fun configureWiFi(ssid: String, password: String, promise: Promise) {
+    fun configureWiFi(context: Context, ssid: String, password: String, promise: Promise) {
         val printer = cloudPrinter
         if (printer != null) {
             try {
@@ -436,7 +436,7 @@ class SunmiManager {
         }
     }
 
-    fun quitWiFiConfig(promise: Promise) {
+    fun quitWiFiConfig(context: Context, promise: Promise) {
         val printer = cloudPrinter
         if (printer != null) {
             try {
@@ -456,7 +456,7 @@ class SunmiManager {
         }
     }
 
-    fun deleteWiFiSettings(promise: Promise) {
+    fun deleteWiFiSettings(context: Context, promise: Promise) {
         val printer = cloudPrinter
         if (printer != null) {
             try {
