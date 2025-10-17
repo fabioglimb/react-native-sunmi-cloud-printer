@@ -42,12 +42,6 @@ android {
   }
 }
 
-repositories {
-  flatDir {
-    dirs "${projectDir}/libs"
-  }
-}
-
 dependencies {
   implementation 'androidx.activity:activity-ktx:1.9.1'
   implementation(name: 'externalprinterlibrary2-1.0.13-release', ext: 'aar')

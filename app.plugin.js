@@ -1,4 +1,4 @@
-const { withDangerousMod, withAppBuildGradle } = require('@expo/config-plugins');
+const { withDangerousMod } = require('@expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
@@ -27,6 +27,26 @@ const withSunmiSettingsGradle = (config) => {
         return config;
       }
       
+      // Find the package location - try multiple paths for monorepo support
+      const androidRoot = config.modRequest.platformProjectRoot;
+      const possiblePaths = [
+        '../node_modules/react-native-sunmi-cloud-printer/android/libs',  // Standard
+        '../../node_modules/react-native-sunmi-cloud-printer/android/libs',  // Apps folder in monorepo
+        '../../../node_modules/react-native-sunmi-cloud-printer/android/libs',  // Deeper monorepo
+      ];
+      
+      let packagePath = possiblePaths[0]; // Default to standard path
+      
+      // Try to find which path actually exists
+      for (const testPath of possiblePaths) {
+        const absolutePath = path.resolve(androidRoot, testPath);
+        if (fs.existsSync(absolutePath)) {
+          packagePath = testPath;
+          console.log(`[Sunmi] Found package at: ${packagePath}`);
+          break;
+        }
+      }
+      
       // Add to dependencyResolutionManagement > repositories
       const drmRepoRegex = /(dependencyResolutionManagement\s*\{[\s\S]*?repositories\s*\{)/;
       
@@ -35,7 +55,7 @@ const withSunmiSettingsGradle = (config) => {
           drmRepoRegex,
           `$1
         flatDir {
-            dirs "../node_modules/react-native-sunmi-cloud-printer/android/libs"
+            dirs "${packagePath}"
         }`
         );
         
@@ -51,40 +71,10 @@ const withSunmiSettingsGradle = (config) => {
 };
 
 /**
- * Add AAR dependency to app/build.gradle
- */
-const withSunmiAppBuildGradle = (config) => {
-  return withAppBuildGradle(config, (config) => {
-    if (config.modResults.language === 'groovy') {
-      let contents = config.modResults.contents;
-      
-      // Check if already added
-      if (contents.includes('externalprinterlibrary2-1.0.13-release')) {
-        return config;
-      }
-      
-      // Add AAR implementation dependency
-      const dependenciesRegex = /dependencies\s*\{/;
-      if (dependenciesRegex.test(contents)) {
-        contents = contents.replace(
-          dependenciesRegex,
-          `dependencies {
-    implementation(name: 'externalprinterlibrary2-1.0.13-release', ext: 'aar')`
-        );
-      }
-      
-      config.modResults.contents = contents;
-    }
-    return config;
-  });
-};
-
-/**
- * Main plugin that combines settings.gradle and app/build.gradle modifications
+ * Main plugin that adds flatDir repository to settings.gradle
  */
 const withSunmiCloudPrinterAAR = (config) => {
   config = withSunmiSettingsGradle(config);
-  config = withSunmiAppBuildGradle(config);
   return config;
 };
 
