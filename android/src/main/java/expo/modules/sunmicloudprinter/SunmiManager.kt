@@ -346,11 +346,11 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             // WiFi configuration only works with Bluetooth-connected printers
-            val printerInfo = printer.info
-            val isBluetoothPrinter = printerInfo?.mac != null && printerInfo.mac?.isNotEmpty() == true
+            val printerInfo = printer.cloudPrinterInfo
+            val isBluetoothPrinter = printerInfo?.mac != null && printerInfo.mac.isNotEmpty()
             
             printDebugLog("🔵 enterNetworkMode called")
-            printDebugLog("🔵 Printer info: mac=${printerInfo?.mac}, ip=${printerInfo?.ip}, name=${printerInfo?.name}")
+            printDebugLog("🔵 Printer info: mac=${printerInfo?.mac}, ip=${printerInfo?.address}, name=${printerInfo?.name}")
             printDebugLog("🔵 Is Bluetooth: $isBluetoothPrinter")
             printDebugLog("🔵 Provided SN: ${if (serialNumber.isEmpty()) "<empty>" else serialNumber}")
             
@@ -410,8 +410,8 @@ class SunmiManager {
         if (printer != null) {
             try {
                 // WiFi configuration only works with Bluetooth-connected printers
-                val printerInfo = printer.info
-                val isBluetoothPrinter = printerInfo?.mac != null && printerInfo.mac?.isNotEmpty() == true
+                val printerInfo = printer.cloudPrinterInfo
+                val isBluetoothPrinter = printerInfo?.mac != null && printerInfo.mac.isNotEmpty()
                 
                 if (!isBluetoothPrinter) {
                     printDebugLog("🔴 ERROR: WiFi list search requires Bluetooth connection")
