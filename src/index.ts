@@ -359,4 +359,222 @@ export function printerSerialNumberListener(listener: (event: PrinterSerialNumbe
   return ReactNativeSunmiCloudPrinterModule.addListener('onPrinterSerialNumber', listener);
 }
 
+// ---------------
+// Inner Printer APIs (Android Sunmi devices only)
+// ---------------
+
+/**
+ * Alignment constants for inner printer
+ */
+export const InnerPrinterAlignment = {
+  LEFT: 0,
+  CENTER: 1,
+  RIGHT: 2,
+} as const;
+
+/**
+ * Barcode symbology constants
+ */
+export const BarcodeSymbology = {
+  UPC_A: 0,
+  UPC_E: 1,
+  EAN13: 2,
+  EAN8: 3,
+  CODE39: 4,
+  ITF: 5,
+  CODABAR: 6,
+  CODE93: 7,
+  CODE128: 8,
+} as const;
+
+/**
+ * Barcode text position constants
+ */
+export const BarcodeTextPosition = {
+  NO_TEXT: 0,
+  TEXT_ABOVE: 1,
+  TEXT_BELOW: 2,
+  TEXT_BOTH: 3,
+} as const;
+
+/**
+ * Check if the device has an inner printer (Sunmi embedded thermal printer).
+ * Returns false on iOS and non-Sunmi Android devices.
+ */
+export function hasInnerPrinter(): boolean {
+  return ReactNativeSunmiCloudPrinterModule.hasInnerPrinter();
+}
+
+/**
+ * Initialize the inner printer.
+ * Resets printer logic but doesn't clear the buffer.
+ * Android Sunmi devices only.
+ */
+export async function innerPrinterInit(): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerPrinterInit();
+}
+
+/**
+ * Get inner printer status.
+ * Returns:
+ * - 0: Normal
+ * - 1: Preparing
+ * - 2: Abnormal communication
+ * - 3: Out of paper
+ * - 4: Overheated
+ * - 8: No printer connected
+ * - 9: Firmware upgrade
+ * - 505: Printer not detected
+ * 
+ * Android Sunmi devices only.
+ */
+export async function getInnerPrinterStatus(): Promise<number> {
+  return ReactNativeSunmiCloudPrinterModule.getInnerPrinterStatus();
+}
+
+/**
+ * Get inner printer serial number.
+ * Android Sunmi devices only.
+ */
+export async function getInnerPrinterSerialNo(): Promise<string> {
+  return ReactNativeSunmiCloudPrinterModule.getInnerPrinterSerialNo();
+}
+
+/**
+ * Get inner printer firmware version.
+ * Android Sunmi devices only.
+ */
+export async function getInnerPrinterVersion(): Promise<string> {
+  return ReactNativeSunmiCloudPrinterModule.getInnerPrinterVersion();
+}
+
+/**
+ * Get inner printer model.
+ * Android Sunmi devices only.
+ */
+export async function getInnerPrinterModel(): Promise<string> {
+  return ReactNativeSunmiCloudPrinterModule.getInnerPrinterModel();
+}
+
+/**
+ * Get inner printer paper size (58mm or 80mm).
+ * Android Sunmi devices only.
+ */
+export async function getInnerPrinterPaper(): Promise<string> {
+  return ReactNativeSunmiCloudPrinterModule.getInnerPrinterPaper();
+}
+
+/**
+ * Print text on the inner printer.
+ * Android Sunmi devices only.
+ */
+export async function innerPrintText(text: string): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerPrintText(text);
+}
+
+/**
+ * Print text with custom font on the inner printer.
+ * Android Sunmi devices only.
+ */
+export async function innerPrintTextWithFont(text: string, typeface: string, fontSize: number): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerPrintTextWithFont(text, typeface, fontSize);
+}
+
+/**
+ * Set text alignment for the inner printer.
+ * Use InnerPrinterAlignment constants.
+ * Android Sunmi devices only.
+ */
+export async function innerSetAlignment(alignment: number): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerSetAlignment(alignment);
+}
+
+/**
+ * Set font size for the inner printer.
+ * Android Sunmi devices only.
+ */
+export async function innerSetFontSize(fontSize: number): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerSetFontSize(fontSize);
+}
+
+/**
+ * Print N lines (line feed) on the inner printer.
+ * Android Sunmi devices only.
+ */
+export async function innerLineWrap(lines: number): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerLineWrap(lines);
+}
+
+interface InnerPrintBitmapProps {
+  base64: string;
+  width: number;
+}
+
+/**
+ * Print a bitmap image on the inner printer.
+ * Android Sunmi devices only.
+ * 
+ * @param base64 - Base64 encoded image (with or without data URL prefix)
+ * @param width - Width in pixels (384 for 58mm, 576 for 80mm)
+ */
+export async function innerPrintBitmap({ base64, width }: InnerPrintBitmapProps): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerPrintBitmap(base64, Math.floor(width));
+}
+
+interface InnerPrintBarCodeProps {
+  data: string;
+  symbology: number;
+  height: number;
+  width: number;
+  textPosition: number;
+}
+
+/**
+ * Print a 1D barcode on the inner printer.
+ * Android Sunmi devices only.
+ * 
+ * @param data - Barcode data
+ * @param symbology - Barcode type (use BarcodeSymbology constants)
+ * @param height - Height in pixels
+ * @param width - Width multiplier (2-6)
+ * @param textPosition - Text position (use BarcodeTextPosition constants)
+ */
+export async function innerPrintBarCode({ data, symbology, height, width, textPosition }: InnerPrintBarCodeProps): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerPrintBarCode(data, symbology, Math.floor(height), Math.floor(width), textPosition);
+}
+
+interface InnerPrintQRCodeProps {
+  data: string;
+  moduleSize?: number;
+  errorLevel?: number;
+}
+
+/**
+ * Print a QR code on the inner printer.
+ * Android Sunmi devices only.
+ * 
+ * @param data - QR code data
+ * @param moduleSize - Module size (4-16, default 8)
+ * @param errorLevel - Error correction level (0-3, default 1)
+ */
+export async function innerPrintQRCode({ data, moduleSize = 8, errorLevel = 1 }: InnerPrintQRCodeProps): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerPrintQRCode(data, moduleSize, errorLevel);
+}
+
+/**
+ * Cut paper on the inner printer.
+ * Android Sunmi devices only.
+ */
+export async function innerCutPaper(): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerCutPaper();
+}
+
+/**
+ * Open cash drawer connected to the inner printer.
+ * Android Sunmi devices only.
+ */
+export async function innerOpenCashDrawer(): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerOpenCashDrawer();
+}
+
 export { ReactNativeSunmiCloudPrinterView, ReactNativeSunmiCloudPrinterViewProps, PrintersEventPayload };

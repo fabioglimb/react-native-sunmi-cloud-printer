@@ -48,4 +48,8 @@ dependencies {
   // Sunmi Cloud Printer Library from Maven Central
   // https://central.sonatype.com/artifact/com.sunmi/external-printerlibrary2
   implementation 'com.sunmi:external-printerlibrary2:1.0.14'
+  
+  // Sunmi Inner Printer Library from Maven Central
+  // https://central.sonatype.com/artifact/com.sunmi/printerlibrary
+  implementation 'com.sunmi:printerlibrary:1.0.24'
 }

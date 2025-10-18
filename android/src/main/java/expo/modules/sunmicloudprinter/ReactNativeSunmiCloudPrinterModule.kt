@@ -23,6 +23,7 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
 
   private val context get() = requireNotNull(appContext.reactContext)
   private var sunmiManager = SunmiManager()
+  private var innerPrinterManager: SunmiInnerPrinterManager? = null
 
   private var printersObserver: (devices: List<CloudPrinter>) -> Unit = {}
   private var printerConnectionObserver: (connected: Boolean) -> Unit = {}
@@ -79,6 +80,10 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
         this@ReactNativeSunmiCloudPrinterModule.sendEvent(PRINTER_SERIAL_NUMBER_EVENT_NAME, result)
       }
       PrinterSerialNumberNotifier.registerObserver(printerSerialNumberObserver)
+
+      // Initialize inner printer manager
+      innerPrinterManager = SunmiInnerPrinterManager(context)
+      innerPrinterManager?.bindService()
     }
 
     OnDestroy {
@@ -87,6 +92,10 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
       WiFiNetworkNotifier.deregisterObserver(wifiNetworkObserver)
       WiFiConfigStatusNotifier.deregisterObserver(wifiConfigStatusObserver)
       PrinterSerialNumberNotifier.deregisterObserver(printerSerialNumberObserver)
+      
+      // Unbind inner printer service
+      innerPrinterManager?.unbindService()
+      innerPrinterManager = null
     }
 
     // Enables the module to be used as a native view. Definition components that are accepted as part of
@@ -257,6 +266,87 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
 
     AsyncFunction("deleteWiFiSettings") { promise: Promise ->
       sunmiManager.deleteWiFiSettings(context, promise)
+    }
+
+    // -----------------------------
+    // Inner Printer methods
+    // (Sunmi devices with embedded thermal printers)
+    // -----------------------------
+
+    // Status & Info methods
+
+    Function("hasInnerPrinter") {
+      innerPrinterManager?.hasPrinterService() ?: false
+    }
+
+    AsyncFunction("innerPrinterInit") { promise: Promise ->
+      innerPrinterManager?.printerInit(promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("getInnerPrinterStatus") { promise: Promise ->
+      innerPrinterManager?.getPrinterStatus(promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("getInnerPrinterSerialNo") { promise: Promise ->
+      innerPrinterManager?.getPrinterSerialNo(promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("getInnerPrinterVersion") { promise: Promise ->
+      innerPrinterManager?.getPrinterVersion(promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("getInnerPrinterModel") { promise: Promise ->
+      innerPrinterManager?.getPrinterModel(promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("getInnerPrinterPaper") { promise: Promise ->
+      innerPrinterManager?.getPrinterPaper(promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    // Text printing methods
+
+    AsyncFunction("innerPrintText") { text: String, promise: Promise ->
+      innerPrinterManager?.printText(text, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("innerPrintTextWithFont") { text: String, typeface: String, fontSize: Float, promise: Promise ->
+      innerPrinterManager?.printTextWithFont(text, typeface, fontSize, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("innerSetAlignment") { alignment: Int, promise: Promise ->
+      innerPrinterManager?.setAlignment(alignment, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("innerSetFontSize") { fontSize: Float, promise: Promise ->
+      innerPrinterManager?.setFontSize(fontSize, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("innerLineWrap") { lines: Int, promise: Promise ->
+      innerPrinterManager?.lineWrap(lines, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    // Image & barcode methods
+
+    AsyncFunction("innerPrintBitmap") { base64Data: String, width: Int, promise: Promise ->
+      innerPrinterManager?.printBitmap(base64Data, width, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("innerPrintBarCode") { data: String, symbology: Int, height: Int, width: Int, textPosition: Int, promise: Promise ->
+      innerPrinterManager?.printBarCode(data, symbology, height, width, textPosition, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("innerPrintQRCode") { data: String, moduleSize: Int, errorLevel: Int, promise: Promise ->
+      innerPrinterManager?.printQRCode(data, moduleSize, errorLevel, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    // Paper control methods
+
+    AsyncFunction("innerCutPaper") { promise: Promise ->
+      innerPrinterManager?.cutPaper(promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
+    AsyncFunction("innerOpenCashDrawer") { promise: Promise ->
+      innerPrinterManager?.openCashDrawer(promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
     }
   }
 }

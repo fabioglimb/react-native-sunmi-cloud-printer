@@ -176,6 +176,79 @@ public class ReactNativeSunmiCloudPrinterModule: Module {
     AsyncFunction("deleteWiFiSettings") { (promise: Promise) in
       sunmiManager.deleteWiFiSettings(promise: promise)
     }
+    
+    // -----------------------------
+    // Inner Printer methods (NOT SUPPORTED ON iOS)
+    // These methods are only available on Android Sunmi devices with embedded thermal printers
+    // -----------------------------
+    
+    Function("hasInnerPrinter") {
+      return false
+    }
+    
+    AsyncFunction("innerPrinterInit") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterStatus") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterSerialNo") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterVersion") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterModel") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterPaper") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintText") { (text: String, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintTextWithFont") { (text: String, typeface: String, fontSize: Float, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerSetAlignment") { (alignment: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerSetFontSize") { (fontSize: Float, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerLineWrap") { (lines: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintBitmap") { (base64Data: String, width: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintBarCode") { (data: String, symbology: Int, height: Int, width: Int, textPosition: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintQRCode") { (data: String, moduleSize: Int, errorLevel: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerCutPaper") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerOpenCashDrawer") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
   }
 }
 
