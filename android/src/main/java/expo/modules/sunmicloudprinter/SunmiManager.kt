@@ -537,132 +537,172 @@ class SunmiManager {
 
     fun configureWiFi(context: Context, ssid: String, password: String, promise: Promise) {
         val printer = cloudPrinter
-        if (printer != null) {
-            try {
-                printDebugLog("🔵 ========== CONFIGURE WIFI ==========")
-                printDebugLog("🔵 SSID: $ssid")
-                printDebugLog("🔵 Password length: ${password.length}")
-                printDebugLog("🔵 Printer: ${printer.cloudPrinterInfo?.name}")
-                
-                // Convert SSID to ByteArray as required by Sunmi SDK
-                val essid = ssid.toByteArray(Charsets.UTF_8)
-                printDebugLog("🔵 ESSID bytes length: ${essid.size}")
-                
-                WiFiConfigStatusNotifier.onStatusUpdate("will_start_config")
-                
-                // Variable to track if we already resolved/rejected the promise
-                var promiseHandled = false
-                
-                // Timeout handler - resolve after 15 seconds if no callback received
-                val handler = android.os.Handler(android.os.Looper.getMainLooper())
-                val timeoutRunnable = Runnable {
-                    if (!promiseHandled) {
-                        promiseHandled = true
-                        printDebugLog("⏰ TIMEOUT: No connection callback received after 15 seconds")
-                        printDebugLog("🔵 WiFi credentials were saved, but connection status is unknown")
-                        printDebugLog("🔵 The printer may still connect in the background")
-                        
-                        // Exit WiFi config mode
-                        try {
-                            SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
-                            printDebugLog("🟢 Exited WiFi config mode")
-                        } catch (e: Exception) {
-                            printDebugLog("🟡 WARNING: Failed to exit WiFi config mode: ${e.message}")
-                        }
-                        
-                        WiFiConfigStatusNotifier.onStatusUpdate("timeout")
-                        promise.resolve(null) // Resolve anyway - credentials are saved
-                    }
-                }
-                
-                printDebugLog("🟢 Calling setPrinterWifi...")
-                SunmiPrinterManager.getInstance().setPrinterWifi(context, printer, essid, password, object : SetWifiCallback {
-                    override fun onSetWifiSuccess() {
-                        printDebugLog("🟢 ✅ onSetWifiSuccess() called!")
-                        printDebugLog("🔵 WiFi credentials saved to printer")
-                        WiFiConfigStatusNotifier.onStatusUpdate("saved")
-                        
-                        // IMPORTANT: DO NOT exit network mode here!
-                        // The printer needs to STAY in config mode to receive connection callbacks
-                        // We will exit AFTER receiving onConnectWifiSuccess/Failed
-                        
-                        // Start timeout - wait max 20 seconds for connection callbacks
-                        printDebugLog("⏰ Starting 20-second timeout for connection callbacks...")
-                        printDebugLog("🔵 Printer is attempting WiFi connection (still in config mode)...")
-                        printDebugLog("🔵 Waiting for onConnectWifiSuccess() or onConnectWifiFailed()...")
-                        handler.postDelayed(timeoutRunnable, 20000)
-                    }
-                    
-                    override fun onConnectWifiSuccess() {
-                        if (!promiseHandled) {
-                            promiseHandled = true
-                            handler.removeCallbacks(timeoutRunnable) // Cancel timeout
-                            
-                            printDebugLog("🟢 🟢 🟢 ✅ onConnectWifiSuccess() called!")
-                            printDebugLog("🟢 Printer successfully connected to WiFi network!")
-                            
-                            // NOW exit WiFi config mode AFTER successful connection
-                            printDebugLog("🔵 Exiting WiFi config mode...")
-                            try {
-                                SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
-                                printDebugLog("🟢 Successfully exited WiFi config mode")
-                            } catch (e: Exception) {
-                                printDebugLog("🟡 WARNING: Failed to exit WiFi config mode: ${e.message}")
-                            }
-                            
-                            printDebugLog("🔵 The printer is now accessible via WiFi")
-                            WiFiConfigStatusNotifier.onStatusUpdate("success")
-                            promise.resolve(null)
-                        }
-                    }
-                    
-                    override fun onConnectWifiFailed() {
-                        if (!promiseHandled) {
-                            promiseHandled = true
-                            handler.removeCallbacks(timeoutRunnable) // Cancel timeout
-                            
-                            printDebugLog("🔴 ❌ onConnectWifiFailed() called!")
-                            printDebugLog("🔴 Failed to connect to WiFi network")
-                            printDebugLog("🔴 Possible causes:")
-                            printDebugLog("🔴   1. Wrong WiFi password")
-                            printDebugLog("🔴   2. Network not available")
-                            printDebugLog("🔴   3. Signal too weak")
-                            printDebugLog("🔴   4. Router MAC filtering")
-                            printDebugLog("🔴   5. Network security settings incompatible")
-                            
-                            // Exit WiFi config mode even on failure
-                            printDebugLog("🔵 Exiting WiFi config mode...")
-                            try {
-                                SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
-                                printDebugLog("🟢 Successfully exited WiFi config mode")
-                            } catch (e: Exception) {
-                                printDebugLog("🟡 WARNING: Failed to exit WiFi config mode: ${e.message}")
-                            }
-                            
-                            WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                            promise.reject("ERROR_WIFI_CONNECT_FAILED", "Failed to connect to WiFi network. Check password and signal strength.", null)
-                        }
-                    }
-                })
-                
-                printDebugLog("🔵 setPrinterWifi() called, waiting for callbacks...")
-                printDebugLog("🔵 Expected callback sequence:")
-                printDebugLog("🔵   1. onSetWifiSuccess() - credentials saved")
-                printDebugLog("🔵   2. onConnectWifiSuccess() - connection established")
-                printDebugLog("🔵 OR onConnectWifiFailed() - connection failed")
-            } catch (e: Exception) {
-                printDebugLog("🔴 ========== EXCEPTION IN configureWiFi ==========")
-                printDebugLog("🔴 Error message: ${e.message}")
-                printDebugLog("🔴 Exception type: ${e.javaClass.name}")
-                printDebugLog("🔴 Stack trace:")
-                e.printStackTrace()
-                printDebugLog("🔴 ================================================")
-                WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                promise.reject("ERROR_CONFIG_WIFI", e.message, e)
-            }
-        } else {
+        if (printer == null) {
             printDebugLog("🔴 ERROR: Printer not connected")
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
+            return
+        }
+        
+        val printerInfo = printer.cloudPrinterInfo
+        if (printerInfo == null) {
+            printDebugLog("🔴 ERROR: Printer info is null")
+            promise.reject("ERROR_NO_PRINTER_INFO", "Cannot get printer information", null)
+            return
+        }
+        
+        // WiFi configuration only works with Bluetooth-connected printers
+        val isBluetoothPrinter = printerInfo.mac != null && printerInfo.mac.isNotEmpty()
+        if (!isBluetoothPrinter) {
+            printDebugLog("🔴 ERROR: WiFi configuration requires Bluetooth connection")
+            promise.reject(
+                "ERROR_BLUETOOTH_REQUIRED",
+                "WiFi configuration only works with printers connected via Bluetooth.",
+                null
+            )
+            return
+        }
+        
+        try {
+            printDebugLog("🔵 ========== CONFIGURE WIFI - COMPLETE FLOW ==========")
+            printDebugLog("🔵 SSID: $ssid")
+            printDebugLog("🔵 Password length: ${password.length}")
+            printDebugLog("🔵 Printer: ${printerInfo.name} (MAC: ${printerInfo.mac})")
+            
+            WiFiConfigStatusNotifier.onStatusUpdate("will_start_config")
+            
+            // STEP 1: Enter network mode first
+            printDebugLog("🔵 STEP 1: Entering network mode...")
+            
+            // Use cached serial number or empty string
+            val serialNumber = cachedSerialNumber ?: ""
+            printDebugLog("🔵 Using serial number: ${if (serialNumber.isEmpty()) "<empty>" else serialNumber}")
+            
+            try {
+                SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, serialNumber)
+                printDebugLog("🟢 Successfully entered network mode")
+                WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
+            } catch (e: Exception) {
+                printDebugLog("🔴 ERROR entering network mode: ${e.message}")
+                e.printStackTrace()
+                WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                promise.reject("ERROR_ENTER_NETWORK_MODE", "Failed to enter network mode: ${e.message}", e)
+                return
+            }
+            
+            // Convert SSID to ByteArray as required by Sunmi SDK
+            val essid = ssid.toByteArray(Charsets.UTF_8)
+            printDebugLog("🔵 ESSID will be: ${essid.size} bytes")
+            
+            // Variable to track if we already resolved/rejected the promise
+            var promiseHandled = false
+            
+            // Use Handler for async operations
+            val handler = android.os.Handler(android.os.Looper.getMainLooper())
+            
+            // Timeout handler - 30 seconds total
+            val timeoutRunnable = Runnable {
+                if (!promiseHandled) {
+                    promiseHandled = true
+                    printDebugLog("⏰ ⏰ ⏰ TIMEOUT after 30 seconds!")
+                    printDebugLog("🔴 No callbacks received from WiFi configuration")
+                    
+                    // Exit WiFi config mode
+                    try {
+                        SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
+                        printDebugLog("🟢 Exited WiFi config mode")
+                    } catch (e: Exception) {
+                        printDebugLog("🟡 Failed to exit: ${e.message}")
+                    }
+                    
+                    WiFiConfigStatusNotifier.onStatusUpdate("timeout")
+                    promise.reject("ERROR_TIMEOUT", "WiFi configuration timeout. The printer may not be responding.", null)
+                }
+            }
+            
+            // STEP 2: Wait 1 second, then send WiFi credentials
+            printDebugLog("⏳ Waiting 1 second for printer to stabilize in network mode...")
+            handler.postDelayed({
+                printDebugLog("🔵 STEP 2: Sending WiFi credentials now...")
+                
+                // Start timeout counter
+                handler.postDelayed(timeoutRunnable, 30000)
+                
+                try {
+                    SunmiPrinterManager.getInstance().setPrinterWifi(context, printer, essid, password, object : SetWifiCallback {
+                        override fun onSetWifiSuccess() {
+                            printDebugLog("🟢 🟢 🟢 ✅ onSetWifiSuccess() called!")
+                            printDebugLog("🔵 WiFi credentials saved to printer")
+                            WiFiConfigStatusNotifier.onStatusUpdate("saved")
+                            printDebugLog("🔵 Waiting for connection result...")
+                        }
+                        
+                        override fun onConnectWifiSuccess() {
+                            if (!promiseHandled) {
+                                promiseHandled = true
+                                handler.removeCallbacks(timeoutRunnable)
+                                
+                                printDebugLog("🟢 🟢 🟢 ✅ ✅ ✅ onConnectWifiSuccess()!")
+                                printDebugLog("🎉 🎉 🎉 Printer connected to WiFi successfully!")
+                                
+                                // Exit config mode
+                                try {
+                                    SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
+                                    printDebugLog("🟢 Exited WiFi config mode")
+                                } catch (e: Exception) {
+                                    printDebugLog("🟡 Failed to exit: ${e.message}")
+                                }
+                                
+                                WiFiConfigStatusNotifier.onStatusUpdate("success")
+                                promise.resolve(null)
+                            }
+                        }
+                        
+                        override fun onConnectWifiFailed() {
+                            if (!promiseHandled) {
+                                promiseHandled = true
+                                handler.removeCallbacks(timeoutRunnable)
+                                
+                                printDebugLog("🔴 🔴 🔴 ❌ onConnectWifiFailed()!")
+                                printDebugLog("🔴 Failed to connect to WiFi network")
+                                printDebugLog("🔴 Check: password, network availability, signal strength")
+                                
+                                // Exit config mode
+                                try {
+                                    SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
+                                    printDebugLog("🟢 Exited WiFi config mode")
+                                } catch (e: Exception) {
+                                    printDebugLog("🟡 Failed to exit: ${e.message}")
+                                }
+                                
+                                WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                                promise.reject("ERROR_WIFI_CONNECT_FAILED", "Failed to connect to WiFi. Check password and signal.", null)
+                            }
+                        }
+                    })
+                    printDebugLog("🟢 setPrinterWifi() called successfully")
+                } catch (e: Exception) {
+                    if (!promiseHandled) {
+                        promiseHandled = true
+                        handler.removeCallbacks(timeoutRunnable)
+                        printDebugLog("🔴 Exception calling setPrinterWifi: ${e.message}")
+                        e.printStackTrace()
+                        WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                        promise.reject("ERROR_SET_WIFI", "Failed to set WiFi: ${e.message}", e)
+                    }
+                }
+            }, 1000) // 1 second delay
+            
+            printDebugLog("🔵 WiFi configuration request sent, waiting for callbacks...")
+            printDebugLog("🔵 Expected: onSetWifiSuccess → onConnectWifiSuccess/Failed")
+        } catch (e: Exception) {
+            printDebugLog("🔴 ========== EXCEPTION IN configureWiFi ==========")
+            printDebugLog("🔴 Error message: ${e.message}")
+            printDebugLog("🔴 Exception type: ${e.javaClass.name}")
+            printDebugLog("🔴 Stack trace:")
+            e.printStackTrace()
+            printDebugLog("🔴 ================================================")
+            WiFiConfigStatusNotifier.onStatusUpdate("failed")
+            promise.reject("ERROR_CONFIG_WIFI", e.message, e)
         }
     }
 
