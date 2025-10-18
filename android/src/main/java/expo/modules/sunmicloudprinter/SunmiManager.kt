@@ -555,24 +555,26 @@ class SunmiManager {
                     override fun onSetWifiSuccess() {
                         printDebugLog("🟢 ✅ onSetWifiSuccess() called!")
                         printDebugLog("🔵 WiFi credentials saved to printer")
-                        printDebugLog("🔵 Waiting for printer to connect to network...")
+                        printDebugLog("🔵 Printer will now attempt to connect to the network automatically...")
+                        printDebugLog("🔵 Waiting for onConnectWifiSuccess() or onConnectWifiFailed() callback...")
                         WiFiConfigStatusNotifier.onStatusUpdate("saved")
-                        
-                        // IMPORTANT: After saving WiFi settings, we must exit network mode
-                        // to allow the printer to attempt connection
-                        printDebugLog("🔵 Auto-exiting network mode to trigger connection...")
-                        try {
-                            SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
-                            printDebugLog("🟢 Exited network mode - printer should now attempt WiFi connection")
-                        } catch (e: Exception) {
-                            printDebugLog("🟡 WARNING: Failed to exit network mode: ${e.message}")
-                            printDebugLog("🟡 Printer may still connect, but you might need to manually exit network mode")
-                        }
+                        // DO NOT call exitPrinterWifi here - it would interrupt the connection process
+                        // The printer needs to stay in config mode to receive connection callbacks
                     }
                     
                     override fun onConnectWifiSuccess() {
                         printDebugLog("🟢 🟢 🟢 ✅ onConnectWifiSuccess() called!")
                         printDebugLog("🟢 Printer successfully connected to WiFi network!")
+                        
+                        // NOW exit WiFi config mode after successful connection
+                        printDebugLog("🔵 Exiting WiFi config mode...")
+                        try {
+                            SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
+                            printDebugLog("🟢 Exited WiFi config mode successfully")
+                        } catch (e: Exception) {
+                            printDebugLog("🟡 WARNING: Failed to exit WiFi config mode: ${e.message}")
+                        }
+                        
                         printDebugLog("🔵 The printer should now be accessible via WiFi")
                         WiFiConfigStatusNotifier.onStatusUpdate("success")
                         promise.resolve(null)
@@ -587,6 +589,16 @@ class SunmiManager {
                         printDebugLog("🔴   3. Signal too weak")
                         printDebugLog("🔴   4. Router MAC filtering")
                         printDebugLog("🔴   5. Network security settings incompatible")
+                        
+                        // Exit WiFi config mode even on failure
+                        printDebugLog("🔵 Exiting WiFi config mode...")
+                        try {
+                            SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
+                            printDebugLog("🟢 Exited WiFi config mode")
+                        } catch (e: Exception) {
+                            printDebugLog("🟡 WARNING: Failed to exit WiFi config mode: ${e.message}")
+                        }
+                        
                         WiFiConfigStatusNotifier.onStatusUpdate("failed")
                         promise.reject("ERROR_WIFI_CONNECT_FAILED", "Failed to connect to WiFi network. Check password and signal strength.", null)
                     }
