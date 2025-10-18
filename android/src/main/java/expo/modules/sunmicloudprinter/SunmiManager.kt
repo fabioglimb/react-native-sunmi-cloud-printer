@@ -550,48 +550,19 @@ class SunmiManager {
                 
                 WiFiConfigStatusNotifier.onStatusUpdate("will_start_config")
                 
-                printDebugLog("🟢 Calling setPrinterWifi...")
-                SunmiPrinterManager.getInstance().setPrinterWifi(context, printer, essid, password, object : SetWifiCallback {
-                    override fun onSetWifiSuccess() {
-                        printDebugLog("🟢 ✅ onSetWifiSuccess() called!")
-                        printDebugLog("🔵 WiFi credentials saved to printer")
-                        printDebugLog("🔵 Printer will now attempt to connect to the network automatically...")
-                        printDebugLog("🔵 Waiting for onConnectWifiSuccess() or onConnectWifiFailed() callback...")
-                        WiFiConfigStatusNotifier.onStatusUpdate("saved")
-                        // DO NOT call exitPrinterWifi here - it would interrupt the connection process
-                        // The printer needs to stay in config mode to receive connection callbacks
-                    }
-                    
-                    override fun onConnectWifiSuccess() {
-                        printDebugLog("🟢 🟢 🟢 ✅ onConnectWifiSuccess() called!")
-                        printDebugLog("🟢 Printer successfully connected to WiFi network!")
+                // Variable to track if we already resolved/rejected the promise
+                var promiseHandled = false
+                
+                // Timeout handler - resolve after 15 seconds if no callback received
+                val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                val timeoutRunnable = Runnable {
+                    if (!promiseHandled) {
+                        promiseHandled = true
+                        printDebugLog("⏰ TIMEOUT: No connection callback received after 15 seconds")
+                        printDebugLog("🔵 WiFi credentials were saved, but connection status is unknown")
+                        printDebugLog("🔵 The printer may still connect in the background")
                         
-                        // NOW exit WiFi config mode after successful connection
-                        printDebugLog("🔵 Exiting WiFi config mode...")
-                        try {
-                            SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
-                            printDebugLog("🟢 Exited WiFi config mode successfully")
-                        } catch (e: Exception) {
-                            printDebugLog("🟡 WARNING: Failed to exit WiFi config mode: ${e.message}")
-                        }
-                        
-                        printDebugLog("🔵 The printer should now be accessible via WiFi")
-                        WiFiConfigStatusNotifier.onStatusUpdate("success")
-                        promise.resolve(null)
-                    }
-                    
-                    override fun onConnectWifiFailed() {
-                        printDebugLog("🔴 ❌ onConnectWifiFailed() called!")
-                        printDebugLog("🔴 Failed to connect to WiFi network")
-                        printDebugLog("🔴 Possible causes:")
-                        printDebugLog("🔴   1. Wrong WiFi password")
-                        printDebugLog("🔴   2. Network not available")
-                        printDebugLog("🔴   3. Signal too weak")
-                        printDebugLog("🔴   4. Router MAC filtering")
-                        printDebugLog("🔴   5. Network security settings incompatible")
-                        
-                        // Exit WiFi config mode even on failure
-                        printDebugLog("🔵 Exiting WiFi config mode...")
+                        // Exit WiFi config mode
                         try {
                             SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
                             printDebugLog("🟢 Exited WiFi config mode")
@@ -599,8 +570,65 @@ class SunmiManager {
                             printDebugLog("🟡 WARNING: Failed to exit WiFi config mode: ${e.message}")
                         }
                         
-                        WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                        promise.reject("ERROR_WIFI_CONNECT_FAILED", "Failed to connect to WiFi network. Check password and signal strength.", null)
+                        WiFiConfigStatusNotifier.onStatusUpdate("timeout")
+                        promise.resolve(null) // Resolve anyway - credentials are saved
+                    }
+                }
+                
+                printDebugLog("🟢 Calling setPrinterWifi...")
+                SunmiPrinterManager.getInstance().setPrinterWifi(context, printer, essid, password, object : SetWifiCallback {
+                    override fun onSetWifiSuccess() {
+                        printDebugLog("🟢 ✅ onSetWifiSuccess() called!")
+                        printDebugLog("🔵 WiFi credentials saved to printer")
+                        WiFiConfigStatusNotifier.onStatusUpdate("saved")
+                        
+                        // CRITICAL: Exit network mode to trigger the connection attempt
+                        printDebugLog("🔵 Exiting network mode to trigger connection...")
+                        try {
+                            SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
+                            printDebugLog("🟢 Exited network mode - printer will now attempt WiFi connection")
+                        } catch (e: Exception) {
+                            printDebugLog("🔴 ERROR exiting network mode: ${e.message}")
+                        }
+                        
+                        // Start timeout - wait max 15 seconds for connection callbacks
+                        printDebugLog("⏰ Starting 15-second timeout for connection callbacks...")
+                        handler.postDelayed(timeoutRunnable, 15000)
+                        
+                        printDebugLog("🔵 Waiting for onConnectWifiSuccess() or onConnectWifiFailed() callback...")
+                    }
+                    
+                    override fun onConnectWifiSuccess() {
+                        if (!promiseHandled) {
+                            promiseHandled = true
+                            handler.removeCallbacks(timeoutRunnable) // Cancel timeout
+                            
+                            printDebugLog("🟢 🟢 🟢 ✅ onConnectWifiSuccess() called!")
+                            printDebugLog("🟢 Printer successfully connected to WiFi network!")
+                            printDebugLog("🔵 The printer is now accessible via WiFi")
+                            
+                            WiFiConfigStatusNotifier.onStatusUpdate("success")
+                            promise.resolve(null)
+                        }
+                    }
+                    
+                    override fun onConnectWifiFailed() {
+                        if (!promiseHandled) {
+                            promiseHandled = true
+                            handler.removeCallbacks(timeoutRunnable) // Cancel timeout
+                            
+                            printDebugLog("🔴 ❌ onConnectWifiFailed() called!")
+                            printDebugLog("🔴 Failed to connect to WiFi network")
+                            printDebugLog("🔴 Possible causes:")
+                            printDebugLog("🔴   1. Wrong WiFi password")
+                            printDebugLog("🔴   2. Network not available")
+                            printDebugLog("🔴   3. Signal too weak")
+                            printDebugLog("🔴   4. Router MAC filtering")
+                            printDebugLog("🔴   5. Network security settings incompatible")
+                            
+                            WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                            promise.reject("ERROR_WIFI_CONNECT_FAILED", "Failed to connect to WiFi network. Check password and signal strength.", null)
+                        }
                     }
                 })
                 
