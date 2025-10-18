@@ -321,6 +321,10 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
       innerPrinterManager?.setFontSize(fontSize, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
     }
 
+    AsyncFunction("innerSetFontWeight") { isBold: Boolean, promise: Promise ->
+      innerPrinterManager?.setFontWeight(isBold, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
+    }
+
     AsyncFunction("innerLineWrap") { lines: Int, promise: Promise ->
       innerPrinterManager?.lineWrap(lines, promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
     }

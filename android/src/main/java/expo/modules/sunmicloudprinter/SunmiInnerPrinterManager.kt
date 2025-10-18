@@ -332,6 +332,32 @@ class SunmiInnerPrinterManager(private val context: Context) {
     }
     
     /**
+     * Set font weight (bold on/off)
+     * Uses ESC/POS commands to enable/disable bold
+     */
+    fun setFontWeight(isBold: Boolean, promise: Promise) {
+        val service = printerService
+        if (service == null) {
+            promise.reject("ERROR_NO_SERVICE", "Printer service not available", null)
+            return
+        }
+        
+        try {
+            printDebugLog("🔵 Setting font weight: ${if (isBold) "BOLD" else "NORMAL"}")
+            
+            // ESC E n - Select/Cancel bold mode
+            // ESC E 0x0F = Bold ON
+            // ESC E 0x00 = Bold OFF
+            val boldCommand = byteArrayOf(0x1B.toByte(), 0x45.toByte(), if (isBold) 0x0F.toByte() else 0x00.toByte())
+            
+            service.sendRAWData(boldCommand, createResultCallback(promise))
+        } catch (e: RemoteException) {
+            printDebugLog("🔴 ERROR: ${e.message}")
+            promise.reject("ERROR_SET_FONT_WEIGHT", e.message, e)
+        }
+    }
+    
+    /**
      * Line wrap - print N lines
      */
     fun lineWrap(lines: Int, promise: Promise) {

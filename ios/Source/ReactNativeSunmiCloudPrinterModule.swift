@@ -226,6 +226,10 @@ public class ReactNativeSunmiCloudPrinterModule: Module {
       promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
     }
     
+    AsyncFunction("innerSetFontWeight") { (isBold: Bool, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
     AsyncFunction("innerLineWrap") { (lines: Int, promise: Promise) in
       promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
     }

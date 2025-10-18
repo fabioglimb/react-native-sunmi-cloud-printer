@@ -498,6 +498,14 @@ export async function innerSetFontSize(fontSize: number): Promise<void> {
 }
 
 /**
+ * Set font weight (bold) for the inner printer.
+ * Android Sunmi devices only.
+ */
+export async function innerSetFontWeight(isBold: boolean): Promise<void> {
+  return ReactNativeSunmiCloudPrinterModule.innerSetFontWeight(isBold);
+}
+
+/**
  * Print N lines (line feed) on the inner printer.
  * Android Sunmi devices only.
  */
