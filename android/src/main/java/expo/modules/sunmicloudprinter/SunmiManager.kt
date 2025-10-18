@@ -649,10 +649,27 @@ class SunmiManager {
                         printDebugLog("🟢 🟢 🟢 ✅ onSetWifiSuccess() called! (timestamp: ${System.currentTimeMillis()})")
                         printDebugLog("🔵 WiFi credentials saved to printer")
                         WiFiConfigStatusNotifier.onStatusUpdate("saved")
-                        printDebugLog("🔵 Waiting for connection callbacks (onConnectWifiSuccess or onConnectWifiFailed)...")
-                        printDebugLog("🔵 The printer will attempt to connect to the WiFi network")
-                        printDebugLog("🔵 Staying in config mode until connection result arrives...")
-                        printDebugLog("🔵 This may take 10-30 seconds...")
+                        
+                        if (!promiseHandled) {
+                            promiseHandled = true
+                            handler.removeCallbacks(timeoutRunnable)
+                            
+                            printDebugLog("🔵 Exiting WiFi config mode...")
+                            try {
+                                SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
+                                printDebugLog("🟢 ✅ Exited WiFi config mode successfully")
+                            } catch (e: Exception) {
+                                printDebugLog("🟡 Warning: Failed to exit WiFi config mode: ${e.message}")
+                            }
+                            
+                            printDebugLog("✅ WiFi configuration completed!")
+                            printDebugLog("ℹ️  The printer will attempt to connect to WiFi automatically")
+                            printDebugLog("ℹ️  Check the printer's LED or display to verify connection status")
+                            printDebugLog("⚠️  NOTE: onConnectWifiSuccess/Failed callbacks are not supported by this printer")
+                            
+                            WiFiConfigStatusNotifier.onStatusUpdate("success")
+                            promise.resolve(null)
+                        }
                     }
                         
                     override fun onConnectWifiSuccess() {
