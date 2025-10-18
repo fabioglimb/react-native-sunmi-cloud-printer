@@ -582,20 +582,15 @@ class SunmiManager {
                         printDebugLog("🔵 WiFi credentials saved to printer")
                         WiFiConfigStatusNotifier.onStatusUpdate("saved")
                         
-                        // CRITICAL: Exit network mode to trigger the connection attempt
-                        printDebugLog("🔵 Exiting network mode to trigger connection...")
-                        try {
-                            SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
-                            printDebugLog("🟢 Exited network mode - printer will now attempt WiFi connection")
-                        } catch (e: Exception) {
-                            printDebugLog("🔴 ERROR exiting network mode: ${e.message}")
-                        }
+                        // IMPORTANT: DO NOT exit network mode here!
+                        // The printer needs to STAY in config mode to receive connection callbacks
+                        // We will exit AFTER receiving onConnectWifiSuccess/Failed
                         
-                        // Start timeout - wait max 15 seconds for connection callbacks
-                        printDebugLog("⏰ Starting 15-second timeout for connection callbacks...")
-                        handler.postDelayed(timeoutRunnable, 15000)
-                        
-                        printDebugLog("🔵 Waiting for onConnectWifiSuccess() or onConnectWifiFailed() callback...")
+                        // Start timeout - wait max 20 seconds for connection callbacks
+                        printDebugLog("⏰ Starting 20-second timeout for connection callbacks...")
+                        printDebugLog("🔵 Printer is attempting WiFi connection (still in config mode)...")
+                        printDebugLog("🔵 Waiting for onConnectWifiSuccess() or onConnectWifiFailed()...")
+                        handler.postDelayed(timeoutRunnable, 20000)
                     }
                     
                     override fun onConnectWifiSuccess() {
@@ -605,8 +600,17 @@ class SunmiManager {
                             
                             printDebugLog("🟢 🟢 🟢 ✅ onConnectWifiSuccess() called!")
                             printDebugLog("🟢 Printer successfully connected to WiFi network!")
-                            printDebugLog("🔵 The printer is now accessible via WiFi")
                             
+                            // NOW exit WiFi config mode AFTER successful connection
+                            printDebugLog("🔵 Exiting WiFi config mode...")
+                            try {
+                                SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
+                                printDebugLog("🟢 Successfully exited WiFi config mode")
+                            } catch (e: Exception) {
+                                printDebugLog("🟡 WARNING: Failed to exit WiFi config mode: ${e.message}")
+                            }
+                            
+                            printDebugLog("🔵 The printer is now accessible via WiFi")
                             WiFiConfigStatusNotifier.onStatusUpdate("success")
                             promise.resolve(null)
                         }
@@ -625,6 +629,15 @@ class SunmiManager {
                             printDebugLog("🔴   3. Signal too weak")
                             printDebugLog("🔴   4. Router MAC filtering")
                             printDebugLog("🔴   5. Network security settings incompatible")
+                            
+                            // Exit WiFi config mode even on failure
+                            printDebugLog("🔵 Exiting WiFi config mode...")
+                            try {
+                                SunmiPrinterManager.getInstance().exitPrinterWifi(context, printer)
+                                printDebugLog("🟢 Successfully exited WiFi config mode")
+                            } catch (e: Exception) {
+                                printDebugLog("🟡 WARNING: Failed to exit WiFi config mode: ${e.message}")
+                            }
                             
                             WiFiConfigStatusNotifier.onStatusUpdate("failed")
                             promise.reject("ERROR_WIFI_CONNECT_FAILED", "Failed to connect to WiFi network. Check password and signal strength.", null)
