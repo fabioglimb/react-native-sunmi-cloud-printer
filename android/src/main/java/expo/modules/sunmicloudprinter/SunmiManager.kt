@@ -414,32 +414,7 @@ class SunmiManager {
             return
         }
         
-        // Check printer state first
-        try {
-            printDebugLog("🔵 Checking printer state...")
-            printer.getDeviceState(object : StatusCallback {
-                override fun onRunResult(isSuccess: Boolean) {
-                    if (isSuccess) {
-                        printDebugLog("🟢 Printer state check: OK")
-                        proceedToEnterNetworkMode(context, printer, serialNumber, promise)
-                    } else {
-                        printDebugLog("🔴 Printer state check: FAILED")
-                        promise.reject("ERROR_PRINTER_NOT_READY", "Printer is not ready. Please make sure it's powered on and properly connected.", null)
-                    }
-                }
-
-                override fun onReturnString(result: String?) {
-                    printDebugLog("🔵 Printer state: $result")
-                }
-            })
-        } catch (e: Exception) {
-            printDebugLog("🔴 ERROR checking printer state: ${e.message}")
-            // Continue anyway - state check might not be critical
-            proceedToEnterNetworkMode(context, printer, serialNumber, promise)
-        }
-    }
-    
-    private fun proceedToEnterNetworkMode(context: Context, printer: CloudPrinter, serialNumber: String, promise: Promise) {
+        // Proceed to enter network mode
         // Determine serial number to use - fallback chain: provided → cached → empty
         val snToUse: String = when {
             serialNumber.isNotEmpty() -> {
