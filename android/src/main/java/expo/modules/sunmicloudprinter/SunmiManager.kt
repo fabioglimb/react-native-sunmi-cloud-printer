@@ -563,35 +563,17 @@ class SunmiManager {
         }
         
         try {
-            printDebugLog("🔵 ========== CONFIGURE WIFI - COMPLETE FLOW ==========")
+            printDebugLog("🔵 ========== CONFIGURE WIFI ==========")
             printDebugLog("🔵 SSID: $ssid")
             printDebugLog("🔵 Password length: ${password.length}")
             printDebugLog("🔵 Printer: ${printerInfo.name} (MAC: ${printerInfo.mac})")
+            printDebugLog("🔵 NOTE: Assuming printer is already in network mode (manual setup)")
             
             WiFiConfigStatusNotifier.onStatusUpdate("will_start_config")
             
-            // STEP 1: Enter network mode first
-            printDebugLog("🔵 STEP 1: Entering network mode...")
-            
-            // Use cached serial number or empty string
-            val serialNumber = cachedSerialNumber ?: ""
-            printDebugLog("🔵 Using serial number: ${if (serialNumber.isEmpty()) "<empty>" else serialNumber}")
-            
-            try {
-                SunmiPrinterManager.getInstance().startPrinterWifi(context, printer, serialNumber)
-                printDebugLog("🟢 Successfully entered network mode")
-                WiFiConfigStatusNotifier.onStatusUpdate("entered_network_mode")
-            } catch (e: Exception) {
-                printDebugLog("🔴 ERROR entering network mode: ${e.message}")
-                e.printStackTrace()
-                WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                promise.reject("ERROR_ENTER_NETWORK_MODE", "Failed to enter network mode: ${e.message}", e)
-                return
-            }
-            
             // Convert SSID to ByteArray as required by Sunmi SDK
             val essid = ssid.toByteArray(Charsets.UTF_8)
-            printDebugLog("🔵 ESSID will be: ${essid.size} bytes")
+            printDebugLog("🔵 ESSID: ${essid.size} bytes")
             
             // Variable to track if we already resolved/rejected the promise
             var promiseHandled = false
@@ -615,20 +597,18 @@ class SunmiManager {
                     }
                     
                     WiFiConfigStatusNotifier.onStatusUpdate("timeout")
-                    promise.reject("ERROR_TIMEOUT", "WiFi configuration timeout. The printer may not be responding.", null)
+                    promise.reject("ERROR_TIMEOUT", "WiFi configuration timeout. Make sure the printer is in network mode.", null)
                 }
             }
             
-            // STEP 2: Wait 1 second, then send WiFi credentials
-            printDebugLog("⏳ Waiting 1 second for printer to stabilize in network mode...")
-            handler.postDelayed({
-                printDebugLog("🔵 STEP 2: Sending WiFi credentials now...")
-                
-                // Start timeout counter
-                handler.postDelayed(timeoutRunnable, 30000)
-                
-                try {
-                    SunmiPrinterManager.getInstance().setPrinterWifi(context, printer, essid, password, object : SetWifiCallback {
+            // Send WiFi credentials directly (printer should already be in network mode)
+            printDebugLog("🔵 Sending WiFi credentials...")
+            
+            // Start timeout counter
+            handler.postDelayed(timeoutRunnable, 30000)
+            
+            try {
+                SunmiPrinterManager.getInstance().setPrinterWifi(context, printer, essid, password, object : SetWifiCallback {
                         override fun onSetWifiSuccess() {
                             printDebugLog("🟢 🟢 🟢 ✅ onSetWifiSuccess() called!")
                             printDebugLog("🔵 WiFi credentials saved to printer")
@@ -680,17 +660,16 @@ class SunmiManager {
                         }
                     })
                     printDebugLog("🟢 setPrinterWifi() called successfully")
-                } catch (e: Exception) {
-                    if (!promiseHandled) {
-                        promiseHandled = true
-                        handler.removeCallbacks(timeoutRunnable)
-                        printDebugLog("🔴 Exception calling setPrinterWifi: ${e.message}")
-                        e.printStackTrace()
-                        WiFiConfigStatusNotifier.onStatusUpdate("failed")
-                        promise.reject("ERROR_SET_WIFI", "Failed to set WiFi: ${e.message}", e)
-                    }
+            } catch (e: Exception) {
+                if (!promiseHandled) {
+                    promiseHandled = true
+                    handler.removeCallbacks(timeoutRunnable)
+                    printDebugLog("🔴 Exception calling setPrinterWifi: ${e.message}")
+                    e.printStackTrace()
+                    WiFiConfigStatusNotifier.onStatusUpdate("failed")
+                    promise.reject("ERROR_SET_WIFI", "Failed to set WiFi: ${e.message}", e)
                 }
-            }, 1000) // 1 second delay
+            }
             
             printDebugLog("🔵 WiFi configuration request sent, waiting for callbacks...")
             printDebugLog("🔵 Expected: onSetWifiSuccess → onConnectWifiSuccess/Failed")
