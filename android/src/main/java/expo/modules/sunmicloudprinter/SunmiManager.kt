@@ -215,10 +215,17 @@ class SunmiManager {
             // Try to set character size multiplier using reflection (1 = normal, 2 = double)
             val widthMultiplier = if (doubleWidth) 2 else 1
             val heightMultiplier = if (doubleHeight) 2 else 1
+
+            // Get all available methods for debugging
+            val availableMethods = printer.javaClass.methods.map { it.name }.distinct().sorted()
+            printDebugLog("🔍 CloudPrinter available methods: $availableMethods")
+
+            var methodUsed = "none"
             try {
                 // Try setCharMultiple first
                 val setCharMultipleMethod = printer.javaClass.getMethod("setCharMultiple", Int::class.java, Int::class.java)
                 setCharMultipleMethod.invoke(printer, widthMultiplier, heightMultiplier)
+                methodUsed = "setCharMultiple"
                 printDebugLog("✅ setCharMultiple($widthMultiplier, $heightMultiplier) called successfully")
             } catch (e: NoSuchMethodException) {
                 // Try setFontSize as fallback (some SDKs use this)
@@ -226,14 +233,32 @@ class SunmiManager {
                     val setFontSizeMethod = printer.javaClass.getMethod("setFontSize", Int::class.java)
                     val fontSize = if (doubleHeight || doubleWidth) 48 else 24
                     setFontSizeMethod.invoke(printer, fontSize)
+                    methodUsed = "setFontSize"
                     printDebugLog("✅ setFontSize($fontSize) called as fallback")
                 } catch (e2: NoSuchMethodException) {
-                    printDebugLog("⚠️ Neither setCharMultiple nor setFontSize available. Available methods: ${printer.javaClass.methods.map { it.name }.distinct().sorted()}")
+                    methodUsed = "none_available"
+                    printDebugLog("⚠️ Neither setCharMultiple nor setFontSize available")
                 }
             } catch (e: Exception) {
+                methodUsed = "error: ${e.message}"
                 printDebugLog("❌ Error calling character size method: ${e.message}")
             }
-            promise.resolve()
+
+            // Log to JS console by including in resolve
+            val result = mapOf(
+                "success" to true,
+                "methodUsed" to methodUsed,
+                "availableMethods" to availableMethods.filter {
+                    it.contains("font", ignoreCase = true) ||
+                    it.contains("char", ignoreCase = true) ||
+                    it.contains("size", ignoreCase = true) ||
+                    it.contains("bold", ignoreCase = true) ||
+                    it.contains("style", ignoreCase = true) ||
+                    it.contains("text", ignoreCase = true)
+                }
+            )
+            printDebugLog("📤 Returning to JS: $result")
+            promise.resolve(result)
         } else {
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
         }
