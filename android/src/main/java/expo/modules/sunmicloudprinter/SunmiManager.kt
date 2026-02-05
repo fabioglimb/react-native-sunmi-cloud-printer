@@ -212,10 +212,27 @@ class SunmiManager {
         val printer = cloudPrinter
         if (printer != null) {
             printer.setBoldMode(bold)
-            // Set character size multiplier (1 = normal, 2 = double)
+            // Try to set character size multiplier using reflection (1 = normal, 2 = double)
             val widthMultiplier = if (doubleWidth) 2 else 1
             val heightMultiplier = if (doubleHeight) 2 else 1
-            printer.setCharMultiple(widthMultiplier, heightMultiplier)
+            try {
+                // Try setCharMultiple first
+                val setCharMultipleMethod = printer.javaClass.getMethod("setCharMultiple", Int::class.java, Int::class.java)
+                setCharMultipleMethod.invoke(printer, widthMultiplier, heightMultiplier)
+                printDebugLog("✅ setCharMultiple($widthMultiplier, $heightMultiplier) called successfully")
+            } catch (e: NoSuchMethodException) {
+                // Try setFontSize as fallback (some SDKs use this)
+                try {
+                    val setFontSizeMethod = printer.javaClass.getMethod("setFontSize", Int::class.java)
+                    val fontSize = if (doubleHeight || doubleWidth) 48 else 24
+                    setFontSizeMethod.invoke(printer, fontSize)
+                    printDebugLog("✅ setFontSize($fontSize) called as fallback")
+                } catch (e2: NoSuchMethodException) {
+                    printDebugLog("⚠️ Neither setCharMultiple nor setFontSize available. Available methods: ${printer.javaClass.methods.map { it.name }.distinct().sorted()}")
+                }
+            } catch (e: Exception) {
+                printDebugLog("❌ Error calling character size method: ${e.message}")
+            }
             promise.resolve()
         } else {
             promise.rejectWithSunmiError(SunmiPrinterError.PRINTER_NOT_CONNECTED)
