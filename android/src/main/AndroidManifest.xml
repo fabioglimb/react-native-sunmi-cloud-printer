@@ -1,4 +1,4 @@
-<manifest>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <queries>
         <package android:name="com.sunmi.scanner" />
         <package android:name="com.sunmi.sunmiqrcodescanner" />
