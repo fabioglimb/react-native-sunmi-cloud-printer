@@ -92,10 +92,32 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
       WiFiNetworkNotifier.deregisterObserver(wifiNetworkObserver)
       WiFiConfigStatusNotifier.deregisterObserver(wifiConfigStatusObserver)
       PrinterSerialNumberNotifier.deregisterObserver(printerSerialNumberObserver)
-      
+
       // Unbind inner printer service
       innerPrinterManager?.unbindService()
       innerPrinterManager = null
+    }
+
+    OnActivityResult { _, payload ->
+      if (payload.requestCode != SCANNER_REQUEST_CODE) return@OnActivityResult
+      val data = payload.data
+      if (payload.resultCode == android.app.Activity.RESULT_OK && data != null) {
+        val bundle = data.extras
+        if (bundle != null) {
+          @Suppress("UNCHECKED_CAST")
+          val result = bundle.getSerializable("data") as? ArrayList<HashMap<String, String>>
+          if (result != null && result.isNotEmpty()) {
+            scannerPromise?.resolve(result[0]["VALUE"] ?: "")
+          } else {
+            scannerPromise?.resolve("")
+          }
+        } else {
+          scannerPromise?.resolve("")
+        }
+      } else {
+        scannerPromise?.reject("ScanFailed", "Scanning failed or canceled", null)
+      }
+      scannerPromise = null
     }
 
     // Enables the module to be used as a native view. Definition components that are accepted as part of
@@ -352,5 +374,61 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
     AsyncFunction("innerOpenCashDrawer") { promise: Promise ->
       innerPrinterManager?.openCashDrawer(promise) ?: promise.reject("ERROR_NOT_SUPPORTED", "Inner printer not available on this device", null)
     }
+
+    // -----------------------------
+    // Barcode Scanner
+    // -----------------------------
+
+    AsyncFunction("startScanner") { promise: Promise ->
+      val activity = appContext.currentActivity
+      if (activity == null) {
+        promise.reject("E_ACTIVITY_DOES_NOT_EXIST", "Activity doesn't exist", null)
+        return@AsyncFunction
+      }
+      scannerPromise = promise
+      try {
+        val intent = android.content.Intent("com.sunmi.scanner.qrscanner").apply {
+          putExtra("PLAY_SOUND", true)
+          putExtra("PLAY_VIBRATE", false)
+          putExtra("IDENTIFY_MORE_CODE", false)
+          putExtra("IS_SHOW_SETTING", true)
+          putExtra("IS_SHOW_ALBUM", true)
+          putExtra("IDENTIFY_INVERSE", true)
+          putExtra("IS_EAN_8_ENABLE", true)
+          putExtra("IS_UPC_E_ENABLE", true)
+          putExtra("IS_ISBN_10_ENABLE", false)
+          putExtra("IS_CODE_11_ENABLE", true)
+          putExtra("IS_UPC_A_ENABLE", true)
+          putExtra("IS_EAN_13_ENABLE", true)
+          putExtra("IS_ISBN_13_ENABLE", true)
+          putExtra("IS_INTERLEAVED_2_OF_5_ENABLE", true)
+          putExtra("IS_CODE_128_ENABLE", true)
+          putExtra("IS_CODABAR_ENABLE", true)
+          putExtra("IS_CODE_39_ENABLE", true)
+          putExtra("IS_CODE_93_ENABLE", true)
+          putExtra("IS_DATABAR_ENABLE", true)
+          putExtra("IS_DATABAR_EXP_ENABLE", true)
+          putExtra("IS_Micro_PDF417_ENABLE", true)
+          putExtra("IS_MicroQR_ENABLE", true)
+          putExtra("IS_OPEN_LIGHT", true)
+          putExtra("SCAN_MODE", false)
+          putExtra("IS_QR_CODE_ENABLE", true)
+          putExtra("IS_PDF417_ENABLE", true)
+          putExtra("IS_DATA_MATRIX_ENABLE", true)
+          putExtra("IS_AZTEC_ENABLE", true)
+          putExtra("IS_Hanxin_ENABLE", false)
+        }
+        activity.startActivityForResult(intent, SCANNER_REQUEST_CODE)
+      } catch (e: Exception) {
+        scannerPromise?.reject("E_FAILED_TO_SHOW_SCAN", e.message, e)
+        scannerPromise = null
+      }
+    }
   }
+
+  companion object {
+    private const val SCANNER_REQUEST_CODE = 0x2001
+  }
+
+  private var scannerPromise: Promise? = null
 }

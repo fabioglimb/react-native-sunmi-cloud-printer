@@ -585,4 +585,19 @@ export async function innerOpenCashDrawer(): Promise<void> {
   return ReactNativeSunmiCloudPrinterModule.innerOpenCashDrawer();
 }
 
+// ---------------
+// Barcode Scanner (Android Sunmi devices only)
+// ---------------
+
+/**
+ * Start the Sunmi barcode scanner UI and return the scanned value.
+ * Supports QR, EAN, UPC, CODE128, PDF417, DataMatrix, Aztec, and more.
+ * Android Sunmi devices only.
+ *
+ * @returns The scanned barcode/QR code value
+ */
+export async function startScanner(): Promise<string> {
+  return ReactNativeSunmiCloudPrinterModule.startScanner();
+}
+
 export { ReactNativeSunmiCloudPrinterView, ReactNativeSunmiCloudPrinterViewProps, PrintersEventPayload };
